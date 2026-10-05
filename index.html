@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PCN Sewing">
+<meta name="theme-color" content="#0E5A57">
+<title>PCN Sewing — Floor Tools</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="config.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  color: #1a1a1a;
+}
+
+.header {
+  background: #0E5A57;
+  color: white;
+  padding: 28px 16px 24px;
+  text-align: center;
+}
+.header-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
+.header-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.header-sub {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* STATUS STRIP */
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  font-size: 13px;
+  color: #555;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #70AD47;
+  flex-shrink: 0;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+.status-dot.alert { background: #ED7D31; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.85); }
+}
+.status-text { flex: 1; }
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+.status-pill.clear  { background: #E2EFDA; color: #3B6D11; }
+.status-pill.alert  { background: #FCE4D6; color: #843C0C; }
+
+/* SECTION LABEL */
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #aaa;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+
+/* TOOL GRID */
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: white;
+  border-radius: 14px;
+  padding: 20px 10px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  border-top: 3px solid transparent;
+  transition: box-shadow 0.15s, transform 0.12s;
+  position: relative;
+  text-align: center;
+}
+.tool-card:active { transform: scale(0.97); }
+.tool-card:hover  { box-shadow: 0 2px 8px rgba(0,0,0,0.11); }
+
+.tool-card.downtime { border-top-color: #ED7D31; }
+.tool-card.tracker  { border-top-color: #70AD47; }
+.tool-card.register { border-top-color: #2E5597; }
+.tool-card.pm       { border-top-color: #6c2c84; }
+.tool-card.parts    { border-top-color: #C00000; }
+
+.tool-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.tool-card.downtime .tool-icon { background: #FFF2CC; }
+.tool-card.tracker  .tool-icon { background: #E2EFDA; }
+.tool-card.register .tool-icon { background: #DEEAF1; }
+.tool-card.pm       .tool-icon { background: #f3ecf6; }
+.tool-card.parts    .tool-icon { background: #FCEBEB; }
+
+
+.tool-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0E5A57;
+  line-height: 1.3;
+}
+
+.tool-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #ED7D31;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 6px;
+  display: none;
+}
+
+/* SHIFT CARD */
+.shift-card {
+  background: white;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.shift-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #E5F2F1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.shift-body { flex: 1; }
+.shift-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; }
+.shift-value { font-size: 13px; font-weight: 600; color: #0E5A57; margin-top: 1px; }
+.shift-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #ddd;
+  flex-shrink: 0;
+}
+.shift-dot.active { background: #70AD47; animation: pulse 2.4s ease-in-out infinite; }
+
+/* INSTALL BANNER */
+.install-banner {
+  display: none;
+  background: #E5F2F1;
+  border: 1.5px solid #2E5597;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #555;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.install-banner strong { color: #0E5A57; }
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 8px 0 32px;
+  font-size: 11px;
+  color: #bbb;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-eyebrow">Prestige Clothing — PCN Sewing Floor</div>
+  <div class="header-title">Production Floor Tools</div>
+  <div class="header-sub">Select a tool to get started</div>
+</div>
+
+<div class="app">
+
+  <!-- Install banner iOS -->
+  <div class="install-banner" id="installBanner" style="margin-top:8px;">
+    Tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong> for the best experience
+  </div>
+
+  <!-- Live status -->
+  <div class="status-strip" style="margin-top:16px;">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-text" id="statusText">Checking live jobs...</div>
+    <div class="status-pill" id="statusPill" style="display:none;"></div>
+  </div>
+
+  <!-- Shift status -->
+  <div class="shift-card">
+    <div class="shift-icon">🕐</div>
+    <div class="shift-body">
+      <div class="shift-label">Shift status</div>
+      <div class="shift-value" id="shiftValue">—</div>
+    </div>
+    <div class="shift-dot" id="shiftDot"></div>
+  </div>
+
+  <!-- Tool cards -->
+  <div class="section-label">Tools</div>
+  <div class="tools">
+
+    <a class="tool-card downtime" href="downtime.html">
+      <div class="tool-badge" id="downtimeBadge"></div>
+      <div class="tool-icon">🔴</div>
+      <div class="tool-name">Downtime Tracker</div>
+    </a>
+
+    <a class="tool-card tracker" href="scan.html">
+      <div class="tool-icon">📍</div>
+      <div class="tool-name">Asset Tracker</div>
+    </a>
+
+
+    <a class="tool-card parts" href="parts-request.html">
+      <div class="tool-icon">🛠️</div>
+      <div class="tool-name">Parts Request</div>
+    </a>
+
+    <a class="tool-card register" href="dashboard.html">
+      <div class="tool-icon">📊</div>
+      <div class="tool-name">Dashboard</div>
+    </a>
+
+  </div>
+
+  <div class="footer" id="footerDate"></div>
+
+</div>
+
+<script>
+
+function updateShift() {
+  const now  = new Date();
+  const day  = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('footerDate').textContent =
+    days[day] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+
+  const isWeekday  = day >= 1 && day <= 5;
+  const S = PCN.shift;
+  const shiftStart = S.start.h * 60 + S.start.m;
+  const shiftEnd   = day === 5 ? S.endFri.h * 60 + S.endFri.m : S.endMonThu.h * 60 + S.endMonThu.m;
+  const inShift    = isWeekday && mins >= shiftStart && mins < shiftEnd;
+
+  const dot = document.getElementById('shiftDot');
+  const val = document.getElementById('shiftValue');
+
+  if (inShift) {
+    dot.classList.add('active');
+    const rem = shiftEnd - mins;
+    const rh  = Math.floor(rem / 60);
+    const rm  = rem % 60;
+    val.textContent = 'Active — ' + (rh > 0 ? rh + 'h ' : '') + rm + 'min remaining';
+    val.style.color = '#3B6D11';
+  } else if (!isWeekday) {
+    val.textContent = 'No shift today — weekend';
+  } else if (mins < shiftStart) {
+    const wait = shiftStart - mins;
+    val.textContent = 'Starts in ' + Math.floor(wait / 60) + 'h ' + (wait % 60) + 'min';
+  } else {
+    val.textContent = 'Shift ended for today';
+    val.style.color = '#888';
+  }
+}
+
+async function fetchOpenJobs() {
+  try {
+    const res = await fetch(API_BASE + '/downtime-log?mode=open_count');
+    if (!res.ok) throw new Error('Status ' + res.status);
+    const count = (await res.json()).count || 0;
+
+    const dot   = document.getElementById('statusDot');
+    const text  = document.getElementById('statusText');
+    const pill  = document.getElementById('statusPill');
+    const badge = document.getElementById('downtimeBadge');
+
+    if (count === 0) {
+      dot.classList.remove('alert');
+      text.textContent    = 'No open job cards — all clear';
+      pill.textContent    = '✓ Clear';
+      pill.className      = 'status-pill clear';
+      pill.style.display  = 'inline-block';
+      badge.style.display = 'none';
+    } else {
+      dot.classList.add('alert');
+      text.textContent    = count === 1 ? '1 machine currently down' : count + ' machines currently down';
+      pill.textContent    = count + ' open';
+      pill.className      = 'status-pill alert';
+      pill.style.display  = 'inline-block';
+      badge.textContent   = count;
+      badge.style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('statusText').textContent = 'Could not load live status';
+  }
+}
+
+if (window.navigator.standalone === false && /iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  document.getElementById('installBanner').style.display = 'block';
+}
+
+updateShift();
+fetchOpenJobs();
+setInterval(fetchOpenJobs, 60000);
+</script>
+</body>
+</html>
