@@ -1,0 +1,19 @@
+name = "pcn-sewing"
+compatibility_date = "2024-09-01"
+main = "worker.js"
+
+# Custom domain — Cloudflare creates the DNS record and SSL certificate
+# automatically on deploy (lesomo-tools.uk must be an active zone in this
+# Cloudflare account).
+routes = [
+  { pattern = "pcn-sewing.lesomo-tools.uk", custom_domain = true }
+]
+
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pcn_app"
+database_id = "PASTE-PCN_APP-DATABASE-ID-HERE"
