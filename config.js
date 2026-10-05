@@ -113,7 +113,7 @@ const MACHINE_TYPES = [
   { code: 'CYLBED with Tr',  desc: 'CYLINDERBED SPREADER & TRIMMER' },
   { code: 'ELST',            desc: 'ELASTICATOR' },
   { code: 'FLATBD',          desc: 'FLATBED COVERSEAM' },
-  { code: 'C/S spr/Tr',      desc: 'SPREADER & TRIMMER' },
+  { code: 'AUTO-NCK',        desc: 'AUTO-NECK' },
   { code: 'DBL NDL',         desc: 'DOUBLE NEEDLE MACHINE' },
   { code: 'D/N CHAINST',     desc: 'DOUBLE NEEDLE CHAIN STITCH' },
   { code: 'D/N LOCKST',      desc: 'DOUBLE NEEDLE LOCK STITCH' },
