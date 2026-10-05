@@ -17,7 +17,7 @@ const PCN = {
   // Paste the OneSignal App ID here once the app is registered (it is not a
   // secret). Leave blank to switch push notifications off. The REST API key
   // is NOT stored here — it goes in the Worker's secrets.
-  oneSignalAppId: '',
+  oneSignalAppId: '04a4e19f-c038-417a-b5e6-18e58c2b16c7',
 
   // ── Shift pattern ────────────────────────────────────────────────────────
   // Mon–Thu 07:15–17:00, Fri 07:15–15:15, no weekends.
