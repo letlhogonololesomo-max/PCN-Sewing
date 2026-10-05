@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PCN Downtime">
+<meta name="theme-color" content="#0E5A57">
+<title>PCN Sewing — Downtime Tracker</title>
+<link rel="manifest" href="/manifest.json">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; color: #1a1a1a; }
+
+.header { background: #0E5A57; color: white; padding: 16px; text-align: center; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+.app { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+/* ROLE SELECTOR */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.role-btn { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.role-btn:active { transform: scale(0.97); }
+.role-btn.supervisor:hover, .role-btn.supervisor.active { border-color: #0E5A57; background: #E5F2F1; }
+.role-btn.mechanic:hover, .role-btn.mechanic.active { border-color: #70AD47; background: #E2EFDA; }
+.role-icon { font-size: 32px; margin-bottom: 10px; }
+.role-title { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.role-sub { font-size: 11px; color: #888; margin-top: 3px; }
+
+/* SCREENS */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* CARDS */
+.card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+.card-title { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+
+/* FORM */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+select, textarea { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; background: white; transition: border-color 0.2s; font-family: inherit; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer; }
+select:focus, textarea:focus { outline: none; border-color: #2E5597; }
+textarea { min-height: 90px; resize: vertical; }
+
+.asset-confirmed { display: none; align-items: center; gap: 10px; margin-top: 10px; padding: 12px 14px; background: #E2EFDA; border-radius: 10px; border: 1px solid #70AD47; }
+.asset-confirmed .num { font-size: 18px; font-weight: 700; color: #3B6D11; flex: 1; }
+.asset-confirmed .type { font-size: 11px; color: #3B6D11; font-weight: 600; }
+.asset-check { width: 24px; height: 24px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.asset-check svg { width: 13px; height: 13px; stroke: white; fill: none; stroke-width: 2.5; }
+
+.manual-input { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; margin-top: 8px; }
+.manual-input:focus { outline: none; border-color: #2E5597; }
+.or-divider { text-align: center; font-size: 11px; color: #bbb; margin: 8px 0; }
+
+/* SCAN BTN */
+.scan-btn { width: 100%; padding: 15px; border: 2px dashed #2E5597; border-radius: 12px; background: #E5F2F1; color: #2E5597; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.scan-btn.scanning { border-color: #ED7D31; background: #FFF2CC; color: #ED7D31; }
+#readerSup { border-radius: 8px; overflow: hidden; margin-top: 10px; display: none; }
+
+/* SUBMIT BTN */
+.submit-btn { width: 100%; padding: 17px; border: none; border-radius: 14px; color: white; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; }
+.submit-btn.navy { background: #0E5A57; }
+.submit-btn.navy:hover { background: #0A4442; }
+.submit-btn.green { background: #70AD47; }
+.submit-btn.green:hover { background: #5A9438; }
+.submit-btn.orange { background: #ED7D31; }
+.submit-btn.orange:hover { background: #D4691E; }
+.submit-btn:disabled { background: #ccc; color: #999; cursor: not-allowed; }
+.submit-btn:active:not(:disabled) { transform: scale(0.98); }
+
+/* BACK BTN */
+.back-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: #2E5597; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; }
+.back-btn svg { width: 16px; height: 16px; stroke: #2E5597; fill: none; stroke-width: 2.5; }
+
+/* SUCCESS */
+.success-screen { text-align: center; padding: 40px 20px; }
+.success-screen .big-check { width: 72px; height: 72px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.success-screen .big-check svg { width: 36px; height: 36px; stroke: white; fill: none; stroke-width: 2.5; }
+.success-screen h2 { font-size: 22px; font-weight: 700; color: #0E5A57; }
+.success-screen p { font-size: 13px; color: #666; margin-top: 6px; }
+.next-btn { margin-top: 20px; padding: 14px 32px; background: #0E5A57; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+/* JOB CARD LIST */
+.job-card { background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 4px solid #ED7D31; cursor: pointer; transition: background 0.15s; }
+.job-card:hover { background: #fafafa; }
+.job-card.completed { border-left-color: #70AD47; }
+.job-card.investigating { border-left-color: #2E5597; }
+.job-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.job-card-asset { font-size: 16px; font-weight: 700; color: #0E5A57; }
+.job-card-line { font-size: 12px; font-weight: 600; color: #888; }
+.job-card-fault { font-size: 13px; color: #444; margin-bottom: 4px; }
+.job-card-meta { font-size: 11px; color: #aaa; }
+.status-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.pill-open { background: #FCE4D6; color: #843C0C; }
+.pill-investigating { background: #DEEAF1; color: #1F497D; }
+.pill-completed { background: #E2EFDA; color: #3B6D11; }
+
+/* SUMMARY CARDS */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.summary-card { background: white; border-radius: 10px; padding: 14px 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.summary-val { font-size: 26px; font-weight: 700; color: #0E5A57; }
+.summary-lbl { font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+
+/* DOWNTIME TABLE */
+.dt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dt-table th { text-align: left; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 8px; border-bottom: 2px solid #f0f2f5; }
+.dt-table td { padding: 8px 8px; border-bottom: 1px solid #f5f5f5; color: #333; }
+.dt-table tr:last-child td { border-bottom: none; }
+
+/* SECTION TABS */
+.mech-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.mech-tab { flex: 1; padding: 9px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; color: #666; background: white; transition: all 0.15s; }
+.mech-tab.active { background: #0E5A57; color: white; border-color: #0E5A57; }
+
+.section { display: none; }
+.section.active { display: block; }
+
+/* DETAIL SCREEN */
+.detail-header { background: #0E5A57; color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.detail-asset { font-size: 22px; font-weight: 700; }
+.detail-type { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+.detail-line { font-size: 13px; opacity: 0.85; margin-top: 6px; }
+.detail-fault { font-size: 13px; margin-top: 4px; opacity: 0.9; }
+.detail-time { font-size: 11px; opacity: 0.65; margin-top: 8px; }
+.time-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.time-pill { background: white; border-radius: 8px; padding: 8px 12px; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); flex: 1; min-width: 120px; }
+.time-pill-label { color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
+.time-pill-value { color: #0E5A57; font-weight: 600; font-size: 12px; margin-top: 2px; }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 50px 20px; color: #bbb; font-size: 14px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; opacity: 0; transition: all 0.3s; z-index: 999; max-width: 340px; text-align: center; }
+.toast.success { background: #3B6D11; }
+.toast.error { background: #A32D2D; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f2f5; border-top-color: #2E5597; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<!-- OneSignal Push Notifications -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    if (!PCN.oneSignalAppId) return; // not registered yet — see config.js
+    await OneSignal.init({
+      appId: PCN.oneSignalAppId,
+      serviceWorkerPath: "OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/" },
+      notifyButton: { enable: false },
+      allowLocalhostAsSecureOrigin: true,
+    });
+  });
+</script>
+</head>
+<body>
+
+<div class="header">
+  <h1>PCN Downtime Tracker</h1>
+  <p>Sewing floor incident management</p>
+</div>
+
+<!-- ── HOME: ROLE SELECTOR ────────────────────────────────────────── -->
+<div class="app" id="screenHome">
+
+  <!-- Notification permission prompt -->
+  <div id="notifPrompt" style="display:none;background:#E5F2F1;border:1.5px solid #2E5597;border-radius:12px;padding:14px 16px;margin-bottom:12px;margin-top:8px;">
+    <div style="font-size:13px;font-weight:700;color:#0E5A57;margin-bottom:4px;">🔔 Enable push notifications</div>
+    <div style="font-size:12px;color:#555;margin-bottom:10px;">Get notified instantly when a machine goes down — even when this app is in the background.</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="enableNotifications()" style="flex:1;padding:10px;background:#0E5A57;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Enable notifications</button>
+      <button onclick="dismissNotifPrompt()" style="padding:10px 14px;background:white;color:#888;border:1.5px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">Not now</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:8px;">
+    <div class="card-title">Select your role</div>
+    <div class="role-grid">
+      <div class="role-btn supervisor" onclick="goScreen('screenSupervisor')">
+        <div class="role-icon">👔</div>
+        <div class="role-title">Supervisor</div>
+        <div class="role-sub">Log a machine down</div>
+      </div>
+      <div class="role-btn mechanic" onclick="loadMechanicScreen()">
+        <div class="role-icon">🔧</div>
+        <div class="role-title">Mechanic</div>
+        <div class="role-sub">View open job cards</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUPERVISOR: LOG DOWNTIME ───────────────────────────────────── -->
+<div class="app screen" id="screenSupervisor">
+  <button class="back-btn" onclick="goScreen('screenHome')">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+    Back
+  </button>
+
+  <div id="supFormView">
+    <div class="card">
+      <div class="card-title">Step 1 — Asset</div>
+      <button class="scan-btn" id="scanBtnSup" onclick="toggleScannerSup()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg>
+        Scan Machine Barcode
+      </button>
+      <div id="readerSup"></div>
+      <div class="or-divider">— or enter manually —</div>
+      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(cleanBarcode(this.value))">
+      <div class="asset-confirmed" id="supAssetConfirmed">
+        <div style="flex:1">
+          <div class="num" id="supAssetVal"></div>
+          <div class="type" id="supMachineType"></div>
+        </div>
+        <div class="asset-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 2 — Incident details</div>
+      <div class="field">
+        <label>Line</label>
+        <select id="supLine" onchange="checkSupReady()" data-fill="downtimeLocations"><option value="">Select line...</option></select>
+      </div>
+      <div class="field">
+        <label>Fault reported by operator</label>
+        <select id="supFault" onchange="checkSupReady()" data-fill="faults"><option value="">Select fault...</option></select>
+      </div>
+    </div>
+
+    <button class="submit-btn navy" id="supSubmitBtn" onclick="submitDowntime()" disabled>
+      Log Machine Down
+    </button>
+  </div>
+
+  <!-- Success -->
+  <div id="supSuccessView" style="display:none">
+    <div class="card">
+      <div class="success-screen">
+        <div class="big-check"><svg viewBox="0 0 36 36"><polyline points="6,18 14,26 30,10"/></svg></div>
+        <h2>Job Card Created</h2>
+        <p id="supSuccessDetail">Machine logged as down</p>
+        <p style="font-size:12px;color:#aaa;margin-top:8px;">Mechanic has been notified via the app</p>
+        <button class="next-btn" onclick="resetSupervisor()">Log Another</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MECHANIC: JOB CARDS ────────────────────────────────────────── -->
+<div class="app screen" id="screenMechanic">
+  <button class="back-btn" onclick="goScreen('screenHome')">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+    Back
+  </button>
+
+  <div id="mechListView">
+    <!-- Summary -->
+    <div class="summary-grid" id="mechSummary">
+      <div class="summary-card">
+        <div class="summary-val" id="sumOpen">—</div>
+        <div class="summary-lbl">Open</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumInvestigating">—</div>
+        <div class="summary-lbl">Active</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumDone">—</div>
+        <div class="summary-lbl">Done today</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mech-tabs">
+      <div class="mech-tab active" id="tabOpen" onclick="switchMechTab('open')">Open Jobs</div>
+      <div class="mech-tab" id="tabDone" onclick="switchMechTab('done')">Completed</div>
+      <div class="mech-tab" id="tabDowntime" onclick="switchMechTab('downtime')">Downtime</div>
+    </div>
+
+    <!-- Open jobs -->
+    <div class="section active" id="sectionOpen">
+      <div id="openJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </div>
+
+    <!-- Completed -->
+    <div class="section" id="sectionDone">
+      <div id="doneJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </div>
+
+    <!-- Downtime summary -->
+    <div class="section" id="sectionDowntime">
+      <div class="card">
+        <div class="card-title">Total downtime per line — today</div>
+        <div id="downtimeTable"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Job detail view -->
+  <div id="mechDetailView" style="display:none">
+    <button class="back-btn" onclick="backToList()">
+      <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+      Back to job cards
+    </button>
+
+    <div class="detail-header" id="detailHeader"></div>
+
+    <div class="time-row" id="detailTimes"></div>
+
+    <!-- Confirm machine type section (shown when machine_type is Unknown, before investigate) -->
+    <div id="machineTypeConfirmSection" style="display:none">
+      <div class="card" style="border:1.5px solid #ED7D31;">
+        <div class="card-title" style="color:#ED7D31;">⚠ Machine type needed</div>
+        <p style="font-size:13px;color:#555;margin-bottom:14px;">This asset wasn't found in master data. Please confirm the correct machine type before investigating — this will also update master data so future scans resolve automatically.</p>
+        <div class="field" style="position:relative;">
+          <label>Machine type</label>
+          <input type="text" id="mtTypeInput" placeholder="Search or select type..." autocomplete="off"
+            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;"
+            oninput="mtFilterTypeList(this.value)" onfocus="mtShowTypeList()" onblur="mtHideTypeListDelayed()">
+          <div id="mtTypeDropdown" style="display:none;border:1.5px solid #ED7D31;border-top:none;border-radius:0 0 10px 10px;background:white;max-height:200px;overflow-y:auto;position:absolute;left:0;right:0;z-index:10;box-shadow:0 4px 10px rgba(0,0,0,0.1);"></div>
+        </div>
+        <button class="submit-btn orange" id="confirmMachineTypeBtn" onclick="confirmMachineType()" disabled>
+          Confirm Machine Type
+        </button>
+      </div>
+    </div>
+
+    <!-- Investigate section -->
+    <div id="investigateSection" style="display:none">
+      <div class="field" style="margin-bottom:12px;">
+        <label>Your name</label>
+        <select id="investigateMechName" onchange="saveMechName();" data-fill="mechanics"><option value="">Select your name...</option></select>
+      </div>
+      <button class="submit-btn navy" id="investigateBtn" onclick="markInvestigate()" style="margin-bottom:14px;">
+        Investigate — Take this job
+      </button>
+    </div>
+
+    <!-- Parts decision section (shown after investigating) -->
+    <div id="partsDecisionSection" style="display:none">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Spare parts required?</div>
+        <p style="font-size:13px;color:#555;margin-bottom:14px;">Does this repair require a spare part from the workshop?</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button class="submit-btn green" onclick="showPartsRequest()" style="padding:14px;font-size:15px;">
+            Yes — Request Part
+          </button>
+          <button class="submit-btn navy" onclick="showResolveSection()" style="padding:14px;font-size:15px;">
+            No — Proceed
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parts request section -->
+    <div id="partsRequestSection" style="display:none">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Request spare part</div>
+
+        <!-- Machine type display (auto from job card) -->
+        <div style="background:#E5F2F1;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+          <span style="color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Machine type</span>
+          <div style="font-size:15px;font-weight:700;color:#0E5A57;margin-top:2px;" id="partsJobMachineType">—</div>
+        </div>
+
+        <!-- Mechanic name — captured here so it's on the request -->
+        <div class="field">
+          <label>Your name</label>
+          <select id="partsRequestMechanic" onchange="saveMechName();" data-fill="mechanics"><option value="">Select your name...</option></select>
+        </div>
+
+        <!-- Existing requests list -->
+        <div id="existingRequestsList" style="margin-bottom:12px;"></div>
+
+        <!-- Add new request — free text -->
+        <div class="field">
+          <label>Part description</label>
+          <input type="text" id="partDescInput" placeholder="e.g. Feed dog, Needle bar, Bobbin case..."
+            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;"
+            onkeydown="if(event.key==='Enter'){event.preventDefault(); addPartRequest();}">
+        </div>
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number" id="partQty" value="1" min="1" max="99"
+            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;">
+        </div>
+        <button class="submit-btn orange" id="addPartRequestBtn" onclick="addPartRequest()" style="margin-bottom:10px;">
+          + Add Part Request
+        </button>
+        <button class="submit-btn navy" id="donePartsBtn" onclick="submitAndProceed()" disabled>
+          Submit Request &amp; Proceed to Resolve
+        </button>
+      </div>
+    </div>
+
+    <!-- Resolve section -->
+    <div id="resolveSection" style="display:none">
+      <div class="card">
+        <div class="card-title">Resolve job card</div>
+        <div class="field">
+          <label>Your name</label>
+          <select id="mechName" onchange="saveMechName();" data-fill="mechanics"><option value="">Select your name...</option></select>
+        </div>
+        <div class="field">
+          <label>Error code</label>
+          <select id="mechErrorCode" data-fill="errorCodes"><option value="">Select error code...</option></select>
+        </div>
+        <div class="field">
+          <label>Corrective measures taken</label>
+          <textarea id="mechCorrectiveMeasures" placeholder="Describe what you did to fix the machine..."></textarea>
+        </div>
+        <button class="submit-btn green" id="resolveBtn" onclick="markResolved()">
+          Mark as Resolved
+        </button>
+      </div>
+    </div>
+
+    <!-- Completed view -->
+    <div id="completedSection" style="display:none">
+      <div class="card" id="completedDetails"></div>
+      <div class="card" id="completedParts" style="display:none;margin-top:0;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- DUPLICATE TICKET BLOCK OVERLAY -->
+<div id="dupOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;align-items:flex-end;justify-content:center;">
+  <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:#FCE4D6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🔒</div>
+      <div style="font-size:17px;font-weight:700;color:#C00000;">Asset already logged as down</div>
+    </div>
+    <div style="font-size:13px;color:#666;margin-bottom:16px;">This asset cannot be logged for downtime again until the existing incident is resolved.</div>
+    <div id="dupTicketDetails" style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:16px;border-left:4px solid #ED7D31;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="viewExistingTicket()" style="padding:13px;background:#0E5A57;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">View ticket</button>
+      <button onclick="closeDupOverlay()" style="padding:13px;background:#f0f2f5;color:#555;border:1.5px solid #ddd;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+pcnFillSelects(); // dropdowns come from config.js
+
+let currentAssetNo = '';
+let currentMachineType = '';
+let currentJobId = null;
+let currentJobData = null;
+let supScanner = null;
+let supScannerActive = false;
+let allJobs = [];
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screenHome') {
+    document.getElementById('screenHome').style.display = 'block';
+  }
+}
+
+function showScreen(id) {
+  document.getElementById('screenHome').style.display = 'none';
+  goScreen(id);
+}
+
+// ── SUPERVISOR SCANNER ────────────────────────────────────────────
+function toggleScannerSup() {
+  if (supScannerActive) stopScannerSup();
+  else startScannerSup();
+}
+
+function cleanBarcode(val) {
+  // Normalise input — strip all whitespace, convert to uppercase
+  // Ensures 'prs1570', 'PRS 1570', 'Prs1570' all resolve to 'PRS1570'
+  return val.replace(/\s+/g, '').toUpperCase();
+}
+
+function isValidBarcode(val) {
+  if (/^\d+$/.test(val)) return val.length >= 5;
+  return val.length >= 6 && val.length <= 7;
+}
+
+function startScannerSup() {
+  const btn = document.getElementById('scanBtnSup');
+  btn.classList.add('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
+  document.getElementById('readerSup').style.display = 'block';
+  supScannerActive = true;
+
+  let lastRead = '';
+  let lastReadTime = 0;
+  const DEBOUNCE_MS = 300;
+
+  supScanner = new Html5Qrcode('readerSup');
+  supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
+    (decoded) => {
+      const clean = cleanBarcode(decoded);
+      const now = Date.now();
+
+      if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
+        if (!isValidBarcode(clean)) {
+          showToast('Invalid barcode: ' + clean + ' — check and try again.', 'error');
+          lastRead = '';
+          lastReadTime = 0;
+          return;
+        }
+        supSetAsset(clean);
+        document.getElementById('supAssetInput').value = clean;
+        stopScannerSup();
+        showToast('Barcode scanned!', 'success');
+      } else {
+        lastRead = clean;
+        lastReadTime = now;
+      }
+    }, () => {}
+  ).catch(() => { showToast('Camera blocked. Use manual entry.', 'error'); stopScannerSup(); });
+}
+
+function stopScannerSup() {
+  if (supScanner) { supScanner.stop().catch(() => {}); supScanner = null; }
+  document.getElementById('readerSup').style.display = 'none';
+  const btn = document.getElementById('scanBtnSup');
+  btn.classList.remove('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg> Scan Machine Barcode`;
+  supScannerActive = false;
+}
+
+async function supSetAsset(val) {
+  const conf = document.getElementById('supAssetConfirmed');
+  if (!val) {
+    currentAssetNo = '';
+    conf.style.display = 'none';
+    checkSupReady();
+    return;
+  }
+
+  // Validate format before looking up
+  if (!isValidBarcode(val)) {
+    currentAssetNo = '';
+    conf.style.display = 'none';
+    checkSupReady();
+    return;
+  }
+  currentAssetNo = val;
+
+  document.getElementById('supAssetVal').textContent = val;
+  document.getElementById('supMachineType').textContent = 'Looking up...';
+  document.getElementById('supMachineType').style.color = '#888';
+  conf.style.display = 'flex';
+  // Disable submit until lookup completes — prevents race condition
+  document.getElementById('supSubmitBtn').disabled = true;
+
+  // Retry up to 3 times — handles cold start slow connections
+  const MAX_ATTEMPTS = 3;
+  let found = false;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      document.getElementById('supMachineType').textContent = 'Looking up... (attempt ' + attempt + ')';
+      await new Promise(r => setTimeout(r, 1000 * attempt)); // wait 1s, 2s between retries
+    }
+    try {
+      const res = await fetch(API_BASE + '/master-data?asset_no=' + encodeURIComponent(val));
+      if (!res.ok) continue; // retry on HTTP error
+      const row = await res.json();
+      if (row && row.asset_type) {
+        currentMachineType = row.asset_type;
+        document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+        document.getElementById('supMachineType').style.color = '#3B6D11';
+        found = true;
+        break; // success — stop retrying
+      } else {
+        // Row not found — no point retrying, asset genuinely not in master data
+        currentMachineType = 'Unknown';
+        document.getElementById('supMachineType').textContent = 'Not found in master data — will save as Unknown';
+        document.getElementById('supMachineType').style.color = '#888';
+        found = true;
+        break;
+      }
+    } catch(e) {
+      if (attempt === MAX_ATTEMPTS) {
+        // All attempts failed
+        currentMachineType = 'Unknown';
+        document.getElementById('supMachineType').textContent = 'Connection issue — will save as Unknown. Check network.';
+        document.getElementById('supMachineType').style.color = '#C00000';
+      }
+      // Otherwise loop and retry
+    }
+  }
+
+  // Lookup complete — now evaluate if form is ready to submit
+  checkSupReady();
+}
+
+function checkSupReady() {
+  const ready = currentAssetNo &&
+    document.getElementById('supLine').value &&
+    document.getElementById('supFault').value;
+  document.getElementById('supSubmitBtn').disabled = !ready;
+}
+
+// ── DUPLICATE TICKET CHECK ────────────────────────────────────────────────────
+let dupExistingJob = null;
+
+async function checkExistingTicket(assetNo) {
+  if (!assetNo) return null;
+  try {
+    const res = await fetch(API_BASE + '/downtime-log?open=1&asset_no=' + encodeURIComponent(assetNo));
+    if (!res.ok) return null;
+    return await res.json(); // the open ticket, or null
+  } catch(e) { return null; } // fail open — don't block submission on network error
+}
+
+function showDupOverlay(job) {
+  dupExistingJob = job;
+  const time = job.reported_time
+    ? new Date(job.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const date = job.reported_time
+    ? new Date(job.reported_time).toLocaleDateString('en-ZA', { day: '2-digit', month: '2-digit' })
+    : '—';
+  const mechInfo = job.mechanic
+    ? (job.status === 'Investigating' ? ' — being attended by ' + job.mechanic : '')
+    : '';
+  document.getElementById('dupTicketDetails').innerHTML = `
+    <div style="font-size:15px;font-weight:700;color:#0E5A57;margin-bottom:6px;">${job.asset_no}</div>
+    <div style="font-size:13px;color:#555;margin-bottom:4px;">
+      <strong>${job.line || '—'}</strong> &nbsp;|&nbsp;
+      <span style="color:${job.status==='Investigating'?'#ED7D31':'#C00000'};font-weight:700;">${job.status}</span>${mechInfo}
+    </div>
+    <div style="font-size:13px;color:#555;margin-bottom:4px;">Fault: <strong>${job.fault || '—'}</strong></div>
+    <div style="font-size:11px;color:#888;">Reported: ${date} at ${time}</div>`;
+  document.getElementById('dupOverlay').style.display = 'flex';
+}
+
+function closeDupOverlay() {
+  document.getElementById('dupOverlay').style.display = 'none';
+  dupExistingJob = null;
+}
+
+function viewExistingTicket() {
+  closeDupOverlay();
+  // Switch to mechanic screen and open the existing job card
+  goScreen('screenMechanic');
+  setTimeout(async () => {
+    await loadMechanicScreen();
+    if (dupExistingJob) {
+      // Small delay to let the screen render before opening detail
+      setTimeout(() => openJobDetail(dupExistingJob.id), 400);
+    }
+  }, 200);
+}
+
+// Guards against double-submit / re-entrant calls on the downtime log itself
+let submittingDowntime = false;
+
+async function submitDowntime() {
+  if (submittingDowntime) return;
+  submittingDowntime = true;
+
+  const btn = document.getElementById('supSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+
+  try {
+    // Check for existing open or investigating ticket for this asset.
+    // NOTE: this is a best-effort check, not a guarantee — two supervisors
+    // scanning the same asset within a second or two of each other can both
+    // pass this check before either insert lands. The real backstop is the
+    // partial unique index on downtime_log (see SQL note below), which the
+    // 409 branch below handles.
+    const existing = await checkExistingTicket(currentAssetNo);
+    if (existing) {
+      showDupOverlay(existing);
+      return;
+    }
+
+    btn.textContent = 'Logging...';
+    const payload = {
+      asset_no: currentAssetNo,
+      machine_type: currentMachineType,
+      line: document.getElementById('supLine').value,
+      fault: document.getElementById('supFault').value,
+      reported_time: new Date().toISOString(),
+      status: 'Open'
+    };
+
+    const res = await fetch(API_BASE + '/downtime-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok || res.status === 201) {
+      // Send push notification to all subscribed mechanics, deep-linked to this job
+      let newJobId = null;
+      try {
+        const created = await res.json();
+        newJobId = created && created.id ? created.id : null;
+      } catch(e) {}
+      if (PCN.oneSignalAppId) sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault, newJobId);
+      document.getElementById('supSuccessView').style.display = 'block';
+      document.getElementById('supSuccessDetail').textContent =
+        currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
+      // Auto-reset after 3 seconds for next incident
+      setTimeout(() => resetSupervisor(), 3000);
+    } else if (res.status === 409) {
+      // Database-level unique index caught a race: another submission for
+      // this asset landed between our check and our insert. Treat exactly
+      // like the client-side duplicate check — refresh and show the ticket
+      // that actually won the race, rather than a generic error.
+      const raced = await checkExistingTicket(currentAssetNo);
+      btn.disabled = false;
+      btn.textContent = 'Log Machine Down';
+      if (raced) {
+        showDupOverlay(raced);
+      } else {
+        showToast('Asset already logged as down. Please refresh and check.', 'error');
+      }
+    } else {
+      showToast('Error submitting. Please try again.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Log Machine Down';
+    }
+  } catch(e) {
+    showToast('Connection error.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Log Machine Down';
+  } finally {
+    submittingDowntime = false;
+  }
+}
+
+function resetSupervisor() {
+  // Stop scanner if running
+  if (supScannerActive) stopScannerSup();
+
+  // Reset state
+  currentAssetNo = '';
+  currentMachineType = '';
+
+  // Reset form fields
+  document.getElementById('supAssetInput').value = '';
+  document.getElementById('supAssetConfirmed').style.display = 'none';
+  document.getElementById('supMachineType').textContent = '';
+  document.getElementById('supMachineType').style.color = '';
+  document.getElementById('supLine').value = '';
+  document.getElementById('supFault').value = '';
+
+  // Show form, hide success
+  document.getElementById('supFormView').style.display = 'block';
+  document.getElementById('supSuccessView').style.display = 'none';
+
+  // Reset submit button
+  const btn = document.getElementById('supSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Log Machine Down';
+
+  // Scroll to top of form
+  document.getElementById('screenSupervisor').scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+// ── MECHANIC SCREEN ───────────────────────────────────────────────
+async function loadMechanicScreen() {
+  // Restore saved mechanic name
+  setTimeout(loadMechName, 100);
+  showScreen('screenMechanic');
+  document.getElementById('mechListView').style.display = 'block';
+  document.getElementById('mechDetailView').style.display = 'none';
+  await fetchJobs();
+}
+
+async function fetchJobs() {
+  try {
+    const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00';
+    // Only what the mechanic screen needs: jobs still open/investigating
+    // (regardless of date) plus jobs resolved today.
+    const res = await fetch(API_BASE + '/downtime-log?mode=mechanic&resolvedAfter=' + encodeURIComponent(todayStart));
+    allJobs = await res.json();
+    renderMechanicView();
+  } catch(e) {
+    showToast('Could not load job cards.', 'error');
+  }
+}
+
+function renderMechanicView() {
+  const today = new Date().toISOString().split('T')[0];
+  const open  = allJobs.filter(j => j.status === 'Open');
+  const investigating = allJobs.filter(j => j.status === 'Investigating');
+  const openAndInv = [...open, ...investigating];
+  const done  = allJobs.filter(j => j.status === 'Resolved' && (j.resolved_time || '').startsWith(today));
+
+  document.getElementById('sumOpen').textContent = openAndInv.length;
+  document.getElementById('sumInvestigating').textContent = investigating.length;
+  document.getElementById('sumDone').textContent = done.length;
+
+  // Open jobs list
+  if (openAndInv.length === 0) {
+    document.getElementById('openJobsList').innerHTML = '<div class="empty">No open job cards — all clear!</div>';
+  } else {
+    document.getElementById('openJobsList').innerHTML = openAndInv.map(j => jobCardHTML(j)).join('');
+  }
+
+  // Completed jobs
+  if (done.length === 0) {
+    document.getElementById('doneJobsList').innerHTML = '<div class="empty">No completed jobs today yet.</div>';
+  } else {
+    document.getElementById('doneJobsList').innerHTML = done.map(j => jobCardHTML(j)).join('');
+  }
+
+  // Downtime table
+  renderDowntimeTable(done);
+}
+
+function jobCardHTML(j) {
+  const statusClass = j.status === 'Resolved' ? 'completed' : j.status === 'Investigating' ? 'investigating' : '';
+  const pillClass   = j.status === 'Resolved' ? 'pill-completed' : j.status === 'Investigating' ? 'pill-investigating' : 'pill-open';
+  const time = j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const downtime = j.total_downtime_minutes ? formatMins(j.total_downtime_minutes) : '';
+  const mechInfo = j.status === 'Investigating' && j.mechanic
+    ? ` &nbsp;|&nbsp; 🔧 ${j.mechanic}`
+    : j.status === 'Resolved' && j.mechanic
+    ? ` &nbsp;|&nbsp; ✓ ${j.mechanic}`
+    : '';
+  const unknownFlag = (j.status !== 'Resolved' && (!j.machine_type || j.machine_type === 'Unknown'))
+    ? ` &nbsp;|&nbsp; <span style="color:#C00000;font-weight:700;">⚠ Type unknown</span>`
+    : '';
+  return `<div class="job-card ${statusClass}" onclick="openJobDetail(${j.id})">
+    <div class="job-card-top">
+      <div class="job-card-asset">${j.asset_no || '—'}</div>
+      <div><span class="status-pill ${pillClass}">${j.status}</span></div>
+    </div>
+    <div class="job-card-line">${j.line || '—'} &nbsp;|&nbsp; ${j.machine_type || '—'}</div>
+    <div class="job-card-fault">${j.fault || '—'}</div>
+    <div class="job-card-meta">Reported: ${time}${downtime ? ' &nbsp;|&nbsp; Downtime: ' + downtime : ''}${mechInfo}${unknownFlag}</div>
+  </div>`;
+}
+
+function renderDowntimeTable(jobs) {
+  if (jobs.length === 0) {
+    document.getElementById('downtimeTable').innerHTML = '<div class="empty" style="padding:20px;">No completed jobs today.</div>';
+    return;
+  }
+  const byLine = {};
+  jobs.forEach(j => {
+    if (!byLine[j.line]) byLine[j.line] = 0;
+    byLine[j.line] += j.total_downtime_minutes || 0;
+  });
+  const sorted = Object.entries(byLine).sort((a,b) => b[1]-a[1]);
+  let html = '<table class="dt-table"><thead><tr><th>Line</th><th>Incidents</th><th>Total downtime</th></tr></thead><tbody>';
+  sorted.forEach(([line, mins]) => {
+    const count = jobs.filter(j => j.line === line).length;
+    html += `<tr><td><strong>${line}</strong></td><td>${count}</td><td>${formatMins(mins)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('downtimeTable').innerHTML = html;
+}
+
+function formatMins(mins) {
+  if (!mins) return '0min';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}hr ${m}min` : `${m}min`;
+}
+
+function formatWallClock(ms) {
+  // Format raw elapsed milliseconds as wall-clock duration
+  const totalMins = Math.floor(ms / 60000);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h >= 24) return Math.floor(h/24) + 'd ' + (h%24) + 'h ' + m + 'min';
+  return h > 0 ? h + 'h ' + m + 'min' : m + 'min';
+}
+
+// ── SHIFT-AWARE TIME CALCULATION ─────────────────────────────────────────────
+// Shift hours come from PCN.shift in config.js (Mon–Thu 07:15–17:00, Fri 07:15–15:15)
+// Weekends: no shift
+
+function getShiftForDate(date) {
+  const day = date.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  if (day === 0 || day === 6) return null; // Weekend — no shift
+  const shiftStart = new Date(date);
+  shiftStart.setHours(PCN.shift.start.h, PCN.shift.start.m, 0, 0);
+  const shiftEnd = new Date(date);
+  if (day === 5) {
+    shiftEnd.setHours(PCN.shift.endFri.h, PCN.shift.endFri.m, 0, 0); // Friday
+  } else {
+    shiftEnd.setHours(PCN.shift.endMonThu.h, PCN.shift.endMonThu.m, 0, 0); // Mon–Thu
+  }
+  return { start: shiftStart, end: shiftEnd };
+}
+
+function nextShiftStart(fromDate) {
+  // Find the next shift start after fromDate
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 7; i++) {
+    const shift = getShiftForDate(d);
+    if (shift) {
+      return shift.start;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function shiftAwareMinutes(startISO, endISO) {
+  // Count only minutes within valid shift windows between two timestamps
+  if (!startISO || !endISO) return 0;
+  let current = new Date(startISO);
+  const end   = new Date(endISO);
+  if (current >= end) return 0;
+
+  let totalMins = 0;
+  let safetyLimit = 0; // prevent infinite loop
+
+  while (current < end && safetyLimit < 50) {
+    safetyLimit++;
+    const shift = getShiftForDate(current);
+
+    if (!shift) {
+      // Weekend or no shift — jump to next shift start
+      const next = nextShiftStart(current);
+      if (!next) break;
+      current = next;
+      continue;
+    }
+
+    // Clamp current to shift start if before shift
+    if (current < shift.start) current = new Date(shift.start);
+
+    // If still before end and within shift
+    if (current >= shift.end) {
+      // Past shift end — jump to next shift start
+      const next = nextShiftStart(current);
+      if (!next) break;
+      current = next;
+      continue;
+    }
+
+    // Count minutes within this shift window
+    const segEnd = end < shift.end ? end : shift.end;
+    totalMins += Math.round((segEnd - current) / 60000);
+    current = new Date(segEnd);
+
+    if (current < shift.end) break; // Resolved within this shift — done
+    // Otherwise loop to next shift
+    const next = nextShiftStart(current);
+    if (!next) break;
+    current = next;
+  }
+
+  return totalMins;
+}
+
+function shiftAwareElapsed(startISO) {
+  // Shift-aware minutes from start to now
+  return shiftAwareMinutes(startISO, new Date().toISOString());
+}
+
+// ── LIVE TIMER ────────────────────────────────────────────────────────────────
+let liveTimerInterval = null;
+let liveTimerStart    = null;
+
+function startLiveTimer(reportedISO) {
+  stopLiveTimer();
+  liveTimerStart = reportedISO;
+  liveTimerInterval = setInterval(() => {
+    const wallEl  = document.getElementById('wallClockPill');
+    const shiftEl = document.getElementById('shiftTimePill');
+    if (!wallEl || !shiftEl) { stopLiveTimer(); return; }
+    const wallMs    = Date.now() - new Date(liveTimerStart).getTime();
+    const shiftMins = shiftAwareElapsed(liveTimerStart);
+    wallEl.textContent  = formatWallClock(wallMs);
+    shiftEl.textContent = formatMins(shiftMins);
+  }, 30000); // update every 30 seconds
+}
+
+function stopLiveTimer() {
+  if (liveTimerInterval) {
+    clearInterval(liveTimerInterval);
+    liveTimerInterval = null;
+    liveTimerStart    = null;
+  }
+}
+
+function switchMechTab(tab) {
+  document.querySelectorAll('.mech-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('section' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// ── MACHINE TYPE CONFIRMATION (for Unknown types) ─────────────────
+// MACHINE_TYPES now comes from config.js (shared across downtime.html,
+// scan.html, and the Asset Register app) — see <script src="config.js">.
+
+let mtSelectedCode = ''; // tracks a confirmed pick from the dropdown (vs free-typed text)
+
+function mtFilterTypeList(q) {
+  const dropdown = document.getElementById('mtTypeDropdown');
+  const filtered = q.length === 0
+    ? MACHINE_TYPES
+    : MACHINE_TYPES.filter(t =>
+        t.code.toLowerCase().includes(q.toLowerCase()) ||
+        t.desc.toLowerCase().includes(q.toLowerCase())
+      );
+  mtRenderTypeDropdown(filtered);
+  dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
+
+  // Any manual typing invalidates a previous selection until re-picked from the list
+  if (q !== mtSelectedCode) {
+    mtSelectedCode = '';
+    document.getElementById('confirmMachineTypeBtn').disabled = true;
+  }
+}
+
+function mtShowTypeList() {
+  const q = document.getElementById('mtTypeInput').value;
+  mtFilterTypeList(q);
+}
+
+function mtHideTypeListDelayed() {
+  setTimeout(() => { document.getElementById('mtTypeDropdown').style.display = 'none'; }, 200);
+}
+
+function mtRenderTypeDropdown(types) {
+  const dropdown = document.getElementById('mtTypeDropdown');
+  dropdown.innerHTML = types.map(t =>
+    `<div onclick="mtSelectType('${t.code.replace(/'/g,"\\'")}','${t.desc.replace(/'/g,"\\'")}')"
+      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:14px;"
+      onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='white'">
+      <strong>${t.code}</strong>
+      <span style="color:#888;font-size:12px;margin-left:8px;">${t.desc}</span>
+    </div>`
+  ).join('');
+}
+
+function mtSelectType(code, desc) {
+  document.getElementById('mtTypeInput').value = code;
+  document.getElementById('mtTypeDropdown').style.display = 'none';
+  mtSelectedCode = code;
+  document.getElementById('confirmMachineTypeBtn').disabled = false;
+}
+
+function showMachineTypeConfirm() {
+  document.getElementById('investigateSection').style.display = 'none';
+  document.getElementById('machineTypeConfirmSection').style.display = 'block';
+
+  const input = document.getElementById('mtTypeInput');
+  const btn = document.getElementById('confirmMachineTypeBtn');
+  input.value = '';
+  mtSelectedCode = '';
+  btn.disabled = true;
+  btn.textContent = 'Confirm Machine Type';
+}
+
+async function confirmMachineType() {
+  const type = mtSelectedCode || document.getElementById('mtTypeInput').value.trim();
+  if (!type || !mtSelectedCode) { showToast('Please pick a machine type from the list.', 'error'); return; }
+
+  const btn = document.getElementById('confirmMachineTypeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Confirming...';
+
+  try {
+    // 1. Update this job card's machine_type
+    const jobRes = await fetch(API_BASE + '/downtime-log/' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ machine_type: type })
+    });
+    if (!jobRes.ok) throw new Error('job update failed');
+
+    // 2. Upsert master_data so future scans of this asset resolve automatically
+    const assetNo = currentJobData.asset_no;
+    try {
+      await fetch(API_BASE + '/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asset_no: assetNo, asset_type: type })
+      });
+    } catch(e) {
+      // master_data update failing shouldn't block the job card fix — log and continue
+      console.warn('master_data upsert failed:', e);
+    }
+
+    // Update local state and reveal investigate section
+    currentJobData.machine_type = type;
+    const cached = allJobs.find(j => j.id === currentJobId);
+    if (cached) cached.machine_type = type;
+
+    document.getElementById('machineTypeConfirmSection').style.display = 'none';
+    document.getElementById('investigateSection').style.display = 'block';
+
+    // Refresh header to show the confirmed type
+    document.querySelector('#detailHeader .detail-type').textContent = type;
+
+    showToast('Machine type confirmed — master data updated.', 'success');
+  } catch(e) {
+    showToast('Could not confirm machine type. Try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Confirm Machine Type';
+  }
+}
+
+// ── JOB DETAIL ────────────────────────────────────────────────────
+function openJobDetail(id) {
+  currentJobId = id;
+  currentJobData = allJobs.find(j => j.id === id);
+  if (!currentJobData) return;
+  const j = currentJobData;
+
+  document.getElementById('mechListView').style.display = 'none';
+  document.getElementById('mechDetailView').style.display = 'block';
+
+  // Header
+  document.getElementById('detailHeader').innerHTML = `
+    <div class="detail-asset">${j.asset_no}</div>
+    <div class="detail-type">${j.machine_type || ''}</div>
+    <div class="detail-line">${j.line} &nbsp;|&nbsp; <span class="status-pill ${j.status==='Resolved'?'pill-completed':j.status==='Investigating'?'pill-investigating':'pill-open'}">${j.status}</span></div>
+    <div class="detail-fault">Fault: ${j.fault}</div>
+    <div class="detail-time">Reported by ${j.reported_by} at ${j.reported_time ? new Date(j.reported_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '—'}</div>
+    ${j.mechanic && j.status === 'Investigating' ? `<div class="detail-time" style="color:#2E5597;font-weight:600;opacity:1;">🔧 Being investigated by ${j.mechanic}</div>` : ''}
+    ${j.mechanic && j.status === 'Resolved'      ? `<div class="detail-time" style="color:#3B6D11;font-weight:600;opacity:1;">✓ Resolved by ${j.mechanic}</div>` : ''}`;
+
+  // Time pills
+  let timesHTML = `<div class="time-pill"><div class="time-pill-label">Reported</div><div class="time-pill-value">${j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—'}</div></div>`;
+  if (j.investigate_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Investigated</div><div class="time-pill-value">${new Date(j.investigate_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  if (j.resolved_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Resolved</div><div class="time-pill-value">${new Date(j.resolved_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  if (j.total_downtime_minutes) timesHTML += `<div class="time-pill" style="background:#FCE4D6;"><div class="time-pill-label">Production lost</div><div class="time-pill-value" style="color:#843C0C;">${formatMins(j.total_downtime_minutes)}</div></div>`;
+
+  // For open/investigating incidents — show live wall clock AND shift-adjusted time
+  if (j.status !== 'Resolved' && j.reported_time) {
+    const wallMs       = Date.now() - new Date(j.reported_time).getTime();
+    const shiftMins    = shiftAwareElapsed(j.reported_time);
+    timesHTML += `
+      <div class="time-pill" style="background:#FFF2CC;border:1px solid #C9A84C;">
+        <div class="time-pill-label" style="color:#8B6914;">⏱ Open for</div>
+        <div class="time-pill-value" style="color:#8B6914;" id="wallClockPill">${formatWallClock(wallMs)}</div>
+      </div>
+      <div class="time-pill" style="background:#FCE4D6;border:1px solid #C00000;">
+        <div class="time-pill-label" style="color:#843C0C;">📉 Production lost</div>
+        <div class="time-pill-value" style="color:#843C0C;" id="shiftTimePill">${formatMins(shiftMins)}</div>
+      </div>`;
+    // Start live timer
+    startLiveTimer(j.reported_time);
+  }
+
+  document.getElementById('detailTimes').innerHTML = timesHTML;
+
+  // Show correct action section
+  document.getElementById('machineTypeConfirmSection').style.display = 'none';
+  document.getElementById('investigateSection').style.display = 'none';
+  document.getElementById('resolveSection').style.display = 'none';
+  document.getElementById('completedSection').style.display = 'none';
+  document.getElementById('partsDecisionSection').style.display = 'none';
+
+  const machineTypeUnknown = !j.machine_type || j.machine_type === 'Unknown';
+
+  if (j.status === 'Open') {
+    if (machineTypeUnknown) {
+      showMachineTypeConfirm();
+    } else {
+      document.getElementById('investigateSection').style.display = 'block';
+    }
+  } else if (j.status === 'Investigating') {
+    document.getElementById('partsDecisionSection').style.display = 'block';
+  } else if (j.status === 'Resolved') {
+    document.getElementById('completedSection').style.display = 'block';
+    document.getElementById('completedDetails').innerHTML = `
+      <div class="card-title">Resolution details</div>
+      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Mechanic:</strong> ${j.mechanic || '—'}</p>
+      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Error code:</strong> ${j.error_code || '—'}</p>
+      <p style="font-size:13px;color:#555;margin-bottom:4px;"><strong>Corrective measures:</strong></p>
+      <p style="font-size:13px;color:#333;line-height:1.6;">${j.corrective_measures || '—'}</p>`;
+    loadCompletedParts(j.id);
+  }
+
+  // Reset pending parts for new session
+  pendingRequests = [];
+}
+
+function backToList() {
+  stopLiveTimer();
+  document.getElementById('mechListView').style.display = 'block';
+  document.getElementById('mechDetailView').style.display = 'none';
+  fetchJobs();
+}
+
+async function markInvestigate() {
+  const mechSel = document.getElementById('investigateMechName');
+  const mechName = mechSel ? mechSel.value : '';
+  if (!mechName) { showToast('Please select your name before taking this job.', 'error'); return; }
+  // Guard: machine type must be confirmed before investigating
+  if (!currentJobData.machine_type || currentJobData.machine_type === 'Unknown') {
+    showToast('Please confirm the machine type first.', 'error');
+    showMachineTypeConfirm();
+    return;
+  }
+  const btn = document.getElementById('investigateBtn');
+  btn.disabled = true; btn.textContent = 'Updating...';
+  const now = new Date().toISOString();
+  // Shift-aware response time — only counts production minutes from reported to now
+  const responseMins = shiftAwareMinutes(currentJobData.reported_time, now);
+  try {
+    const res = await fetch(API_BASE + '/downtime-log/' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Investigating', investigate_time: now, response_minutes: responseMins, mechanic: mechName })
+    });
+    if (res.ok) {
+      showToast('Job card taken — go fix it!', 'success');
+      await fetchJobs();
+      currentJobData = allJobs.find(j => j.id === currentJobId);
+      openJobDetail(currentJobId);
+    } else {
+      showToast('Update failed.', 'error');
+      btn.disabled = false; btn.textContent = 'Investigate — Take this job';
+    }
+  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Investigate — Take this job'; }
+}
+
+async function markResolved() {
+  const mechName   = document.getElementById('mechName').value;
+  const errorCode  = document.getElementById('mechErrorCode').value;
+  const corrective = document.getElementById('mechCorrectiveMeasures').value.trim();
+  if (!mechName)   { showToast('Please select your name.', 'error'); return; }
+  if (!errorCode)  { showToast('Please select an error code.', 'error'); return; }
+  if (!corrective) { showToast('Please describe corrective measures.', 'error'); return; }
+
+  const btn = document.getElementById('resolveBtn');
+  btn.disabled = true; btn.textContent = 'Resolving...';
+
+  const now = new Date().toISOString();
+  const reported    = currentJobData.reported_time    ? new Date(currentJobData.reported_time)    : new Date();
+  const investigate = currentJobData.investigate_time ? new Date(currentJobData.investigate_time) : new Date();
+
+  // Shift-aware total downtime — only counts production minutes lost
+  const totalMins  = shiftAwareMinutes(currentJobData.reported_time, now);
+  // Repair time — shift-aware from investigation to resolution
+  const repairMins = currentJobData.investigate_time
+    ? shiftAwareMinutes(currentJobData.investigate_time, now)
+    : totalMins;
+  // Response time — shift-aware from reported to investigation
+  const responseMins = currentJobData.investigate_time
+    ? shiftAwareMinutes(currentJobData.reported_time, currentJobData.investigate_time)
+    : 0;
+
+  try {
+    const res = await fetch(API_BASE + '/downtime-log/' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'Resolved',
+        mechanic: mechName,
+        error_code: errorCode,
+        corrective_measures: corrective,
+        resolved_time: now,
+        repair_minutes: repairMins,
+        total_downtime_minutes: totalMins
+      })
+    });
+    if (res.ok) {
+      const partsMsg = pendingRequests.length > 0 ? ' Parts requested: ' + pendingRequests.length + '.' : '';
+      showToast('Resolved! Downtime: ' + formatMins(totalMins) + '.' + partsMsg, 'success');
+      pendingRequests = [];
+      await fetchJobs();
+      backToList();
+    } else {
+      showToast('Update failed.', 'error');
+      btn.disabled = false; btn.textContent = 'Mark as Resolved';
+    }
+  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Mark as Resolved'; }
+}
+
+// ── PARTS (embedded mechanic flow) ─────────────────────────────────
+let pendingRequests = [];
+let addingPartRequest = false;
+let submittingParts = false;
+
+function generatePartsBatchId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+function showPartsRequest() {
+  document.getElementById('partsDecisionSection').style.display = 'none';
+  document.getElementById('partsRequestSection').style.display = 'block';
+  const mt = (currentJobData && currentJobData.machine_type) ? currentJobData.machine_type : '—';
+  document.getElementById('partsJobMachineType').textContent = mt;
+  document.getElementById('partsRequestMechanic').value = '';
+  pendingRequests = [];
+  renderExistingRequests();
+  document.getElementById('partDescInput').focus();
+}
+
+function showResolveSection() {
+  document.getElementById('partsDecisionSection').style.display = 'none';
+  document.getElementById('partsRequestSection').style.display = 'none';
+  document.getElementById('resolveSection').style.display = 'block';
+}
+
+// Guarded against double-fire (fast double-tap, or Enter-key + button click
+// racing each other) and merges same-description entries instead of pushing
+// a duplicate line into the request.
+function addPartRequest() {
+  if (addingPartRequest) return;
+  addingPartRequest = true;
+  const addBtn = document.getElementById('addPartRequestBtn');
+  addBtn.disabled = true;
+
+  try {
+    const input = document.getElementById('partDescInput');
+    const desc = input.value.trim();
+    const qty  = parseInt(document.getElementById('partQty').value) || 1;
+
+    if (!desc) {
+      showToast('Please describe the part needed.', 'error');
+      return;
+    }
+
+    const existing = pendingRequests.find(
+      r => r.description.toLowerCase() === desc.toLowerCase()
+    );
+    if (existing) {
+      existing.quantity += qty;
+      showToast('Updated quantity for ' + existing.description + '.', 'success');
+    } else {
+      pendingRequests.push({ description: desc, part_no: '', quantity: qty });
+      showToast('Part added to request.', 'success');
+    }
+
+    input.value = '';
+    document.getElementById('partQty').value = 1;
+    input.focus();
+    renderExistingRequests();
+  } finally {
+    addBtn.disabled = false;
+    addingPartRequest = false;
+  }
+}
+
+function removePartRequest(idx) {
+  pendingRequests.splice(idx, 1);
+  renderExistingRequests();
+}
+
+function renderExistingRequests() {
+  const el = document.getElementById('existingRequestsList');
+  if (pendingRequests.length === 0) {
+    el.innerHTML = '<p style="font-size:12px;color:#aaa;margin-bottom:8px;">No parts requested yet.</p>';
+    document.getElementById('donePartsBtn').disabled = true;
+    return;
+  }
+  el.innerHTML = '<div style="margin-bottom:10px;">' +
+    pendingRequests.map((r, i) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f5f5;border-radius:8px;margin-bottom:6px;font-size:13px;">
+        <div>
+          <strong>${r.description}</strong>
+          <span style="color:#2E5597;font-weight:600;margin-left:8px;">x${r.quantity}</span>
+        </div>
+        <button onclick="removePartRequest(${i})" style="background:none;border:none;color:#C00000;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;">x</button>
+      </div>`).join('') + '</div>';
+  document.getElementById('donePartsBtn').disabled = false;
+}
+
+// Throws on failure instead of swallowing it — callers must find out if the
+// request didn't make it to the workshop, rather than silently proceeding.
+async function submitPartRequests(jobId, assetNo, machineType, line, mechName, batchId) {
+  if (pendingRequests.length === 0) return;
+  const payloads = pendingRequests.map(r => ({
+    job_card_id: jobId,
+    asset_no: assetNo,
+    machine_type: machineType,
+    line: line,
+    mechanic: mechName,
+    part_no: '',
+    part_description: r.description,
+    quantity: r.quantity,
+    status: 'Pending',
+    requested_time: new Date().toISOString(),
+    request_batch_id: batchId
+  }));
+
+  const res = await fetch(API_BASE + '/parts-requests', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payloads)
+  });
+
+  if (res.ok || res.status === 201) return;
+
+  const err = await res.text();
+  // If request_batch_id column doesn't exist yet, or the value sent doesn't
+  // match its column type (e.g. uuid), retry without it rather than losing
+  // the whole parts request over a schema mismatch on one tracking field.
+  if (err.includes('request_batch_id') || err.includes('invalid input syntax for type uuid')) {
+    const stripped = payloads.map(({ request_batch_id, ...rest }) => rest);
+    const retryRes = await fetch(API_BASE + '/parts-requests', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(stripped)
+    });
+    if (retryRes.ok || retryRes.status === 201) return;
+    throw new Error('Parts request failed: ' + await retryRes.text());
+  }
+
+  throw new Error('Parts request failed: ' + err);
+}
+
+async function submitAndProceed() {
+  if (submittingParts) return;
+  submittingParts = true;
+
+  const mechName = document.getElementById('partsRequestMechanic').value;
+  if (!mechName) {
+    showToast('Please select your name before submitting.', 'error');
+    submittingParts = false;
+    return;
+  }
+
+  const btn = document.getElementById('donePartsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting request...';
+
+  // One ID per attempt for this job's parts request — supports future
+  // retry-safe behaviour once a unique constraint exists on parts_requests.
+  // Must be a real UUID: request_batch_id is typed uuid on parts_requests
+  // (see the parts-request.html migration), so a plain string here causes
+  // Postgres to reject the insert with "invalid input syntax for type uuid".
+  const batchId = generatePartsBatchId();
+
+  try {
+    if (pendingRequests.length > 0) {
+      await submitPartRequests(
+        currentJobId,
+        currentJobData.asset_no,
+        currentJobData.machine_type,
+        currentJobData.line,
+        mechName,
+        batchId
+      );
+      pendingRequests = [];
+    }
+
+    // Pre-fill mechanic name on the resolve screen
+    const resolveSelect = document.getElementById('mechName');
+    if (resolveSelect) resolveSelect.value = mechName;
+
+    showToast('Part request sent to workshop!', 'success');
+    showResolveSection();
+  } catch (e) {
+    // Surface the failure instead of silently letting the mechanic proceed
+    // to resolve the job while the parts request never reached the workshop.
+    showToast('Could not send parts request — check connection and try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Submit Request & Proceed to Resolve';
+  } finally {
+    submittingParts = false;
+  }
+}
+
+async function loadCompletedParts(jobId) {
+  try {
+    const res = await fetch(API_BASE + '/parts-requests?job_card_id=' + jobId);
+    const parts = await res.json();
+    const el = document.getElementById('completedParts');
+    if (parts.length === 0) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div class="card-title">Parts issued</div>' +
+      parts.map(p => {
+        const returned = p.quantity_returned || 0;
+        const consumed = p.quantity_consumed || 0;
+        const isOOS    = p.status === 'Out of Stock';
+        const canReturn = p.status === 'Issued' && (p.quantity - returned) > 0;
+        const remaining = p.quantity - returned;
+        const statusPill = isOOS
+          ? `<span class="status-pill" style="background:#FCE4D6;color:#C00000;">Out of stock</span>`
+          : `<span class="status-pill ${p.status === 'Issued' ? 'pill-completed' : 'pill-open'}">${p.status}</span>`;
+        return `
+        <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;${isOOS?'background:#FFF8F8;margin:0 -4px;padding:10px 4px;':''}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div>
+              <strong style="font-size:13px;">${p.part_description || '—'}</strong>
+              ${p.part_no ? '<span style="color:#888;font-size:11px;"> (' + p.part_no + ')</span>' : ''}
+            </div>
+            ${statusPill}
+          </div>
+          ${isOOS ? '<div style="font-size:11px;color:#C00000;font-weight:600;margin-bottom:4px;">⚠ This part was not available in stock</div>' : ''}
+          <div style="font-size:11px;color:#666;display:flex;gap:12px;flex-wrap:wrap;">
+            <span>Requested: <strong>x${p.quantity}</strong></span>
+            ${consumed > 0 ? '<span style="color:#3B6D11;">Used: <strong>x' + consumed + '</strong></span>' : ''}
+            ${returned > 0 ? '<span style="color:#ED7D31;">Returned: <strong>x' + returned + '</strong></span>' : ''}
+          </div>
+          ${canReturn ? `<button onclick="showReturnForm(${p.id}, '${(p.part_description||'').replace(/'/g,"\\'")}', ${remaining}, '${p.part_no||''}')"
+            style="margin-top:8px;padding:6px 14px;background:#ED7D31;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;">
+            Return Part
+          </button>` : ''}
+        </div>`;
+      }).join('');
+  } catch(e) {}
+}
+
+function showReturnForm(requestId, partDesc, maxQty, partNo) {
+  const overlay = document.createElement('div');
+  overlay.id = 'returnOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:420px;">
+      <div style="font-size:16px;font-weight:700;color:#0E5A57;margin-bottom:4px;">Return Part</div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px;"><strong>${partDesc}</strong> — up to x${maxQty} available to return</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Quantity to return</label>
+        <input type="number" id="returnQty" value="${maxQty}" min="1" max="${maxQty}"
+          style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Reason for return</label>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Wrong part issued"> Wrong part issued</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Not needed"> Not needed</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Partial return"> Partial return</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Faulty / defective"> Faulty / defective <span style="font-size:10px;color:#888;"> — awaiting supplier</span></label>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="document.getElementById('returnOverlay').remove()"
+          style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <button onclick="submitReturn(${requestId}, '${partDesc.replace(/'/g,"\\'")}', ${maxQty}, '${partNo}')"
+          style="padding:12px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Submit Return</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitReturn(requestId, partDesc, maxQty, partNo) {
+  const qty = parseInt(document.getElementById('returnQty').value) || 1;
+  const reasonEl = document.querySelector('input[name="returnReason"]:checked');
+  if (!reasonEl) { showToast('Please select a return reason.', 'error'); return; }
+  const reason = reasonEl.value;
+  if (qty < 1 || qty > maxQty) { showToast('Invalid quantity.', 'error'); return; }
+
+  const isFaulty   = reason === 'Faulty / defective';
+  const restoreStock = !isFaulty;
+  const consumed   = maxQty - qty;
+
+  try {
+    // One atomic call: the Worker writes the return record, updates the
+    // request's returned/consumed quantities and (for good-condition
+    // returns) restores stock — all in a single D1 batch.
+    const res = await fetch(API_BASE + '/parts-returns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        request_id: requestId,
+        part_no: partNo || '',
+        part_description: partDesc,
+        quantity_issued: maxQty,
+        quantity_returned: qty,
+        quantity_consumed: consumed,
+        reason: reason
+      })
+    });
+    if (!res.ok) throw new Error('Return failed: ' + res.status);
+
+    document.getElementById('returnOverlay').remove();
+    const msg = isFaulty
+      ? 'Return logged — marked as awaiting supplier return. Stock not restored.'
+      : 'Return received — stock restored by ' + qty + '.';
+    showToast(msg, 'success');
+    loadCompletedParts(currentJobId);
+  } catch(e) { showToast('Return failed. Try again.', 'error'); }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── MECHANIC NAME PERSISTENCE ────────────────────────────────────
+function saveMechName() {
+  const sel = document.getElementById('mechName') || document.getElementById('partsRequestMechanic');
+  if (!sel) return;
+  const val = document.getElementById('mechName') ? document.getElementById('mechName').value : '';
+  const val2 = document.getElementById('partsRequestMechanic') ? document.getElementById('partsRequestMechanic').value : '';
+  const name = val || val2;
+  if (name) try { localStorage.setItem('pcnsew_mechanic', name); } catch(e) {}
+}
+
+function loadMechName() {
+  try {
+    const saved = localStorage.getItem('pcnsew_mechanic');
+    if (!saved) return;
+    const mechSel    = document.getElementById('mechName');
+    const partsSel   = document.getElementById('partsRequestMechanic');
+    const investSel  = document.getElementById('investigateMechName');
+    if (mechSel)   mechSel.value   = saved;
+    if (partsSel)  partsSel.value  = saved;
+    if (investSel) investSel.value = saved;
+  } catch(e) {}
+}
+
+// ── PUSH NOTIFICATIONS (OneSignal) ────────────────────────────────
+function checkNotificationPrompt() {
+  if (!PCN.oneSignalAppId) return; // push not set up yet
+  // Show prompt if permission not yet decided
+  try {
+    if (Notification.permission === 'default') {
+      const dismissed = localStorage.getItem('pcnsew_notif_dismissed');
+      if (!dismissed) {
+        document.getElementById('notifPrompt').style.display = 'block';
+      }
+    }
+  } catch(e) {}
+}
+
+function enableNotifications() {
+  OneSignalDeferred.push(async function(OneSignal) {
+    try {
+      await OneSignal.Notifications.requestPermission();
+      document.getElementById('notifPrompt').style.display = 'none';
+      if (Notification.permission === 'granted') {
+        showToast('Notifications enabled!', 'success');
+      } else {
+        showToast('Notifications not enabled — check browser settings.', 'error');
+      }
+    } catch(e) {
+      showToast('Could not enable notifications.', 'error');
+    }
+  });
+}
+
+function dismissNotifPrompt() {
+  document.getElementById('notifPrompt').style.display = 'none';
+  try { localStorage.setItem('pcnsew_notif_dismissed', '1'); } catch(e) {}
+}
+
+async function sendIncidentNotification(assetNo, machineType, line, fault, jobId) {
+  try {
+    const title   = '🔴 Machine Down — ' + line;
+    const message = 'Asset: ' + assetNo + (machineType ? ' (' + machineType + ')' : '') + ' | ' + fault;
+    // Deep-link straight to this job's detail view when we have an id;
+    // fall back to the generic app URL if the insert didn't return one.
+    const url = jobId
+      ? location.origin + '/downtime.html?job=' + jobId
+      : location.origin + '/downtime.html';
+
+    // Worker proxies to OneSignal (keeps the REST API key server-side)
+    const res = await fetch(API_BASE + '/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, message, url })
+    });
+
+    if (res.ok) {
+      showToast('Mechanics notified.', 'success');
+    } else {
+      console.warn('Notification error:', await res.text());
+    }
+  } catch(e) {
+    console.warn('Notification send failed:', e);
+  }
+}
+
+// Show notification prompt on load
+window.addEventListener('load', () => {
+  setTimeout(checkNotificationPrompt, 1500);
+});
+
+// Deep-link: if opened from a "Machine Down" push notification (?job=<id>),
+// skip the role selector and land straight on that job's detail view.
+window.addEventListener('load', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const jobParam = params.get('job');
+  if (!jobParam) return;
+  const jobId = parseInt(jobParam, 10);
+  if (!jobId) return;
+
+  await loadMechanicScreen(); // shows mechanic screen + runs fetchJobs()
+  if (allJobs.some(j => j.id === jobId)) {
+    openJobDetail(jobId);
+  } else {
+    showToast('That job card could not be found — it may already be closed.', 'error');
+  }
+});
+</script>
+</body>
+</html>

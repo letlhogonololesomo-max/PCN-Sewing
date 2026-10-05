@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Parts Request">
+<meta name="theme-color" content="#0E5A57">
+<title>PCN Sewing — Parts Request</title>
+<link rel="manifest" href="/manifest.json">
+<script src="config.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  color: #1a1a1a;
+}
+
+.header {
+  background: #0E5A57;
+  color: white;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.12);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.header-back svg {
+  width: 16px;
+  height: 16px;
+  stroke: white;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.header-text h1 { font-size: 17px; font-weight: 600; }
+.header-text p  { font-size: 11px; opacity: 0.65; margin-top: 1px; }
+
+.app { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+/* CARDS */
+.card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 12px;
+}
+
+/* FORM FIELDS */
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+select, input[type="text"], input[type="number"], textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1a1a1a;
+  background: white;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+select:focus, input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+  outline: none;
+  border-color: #2E5597;
+}
+textarea { min-height: 80px; resize: vertical; }
+
+/* REASON PILLS */
+.reason-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.reason-btn {
+  padding: 12px 8px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.reason-btn:active { transform: scale(0.97); }
+.reason-btn.active {
+  border-color: #C00000;
+  background: #FCEBEB;
+  color: #C00000;
+}
+
+/* ASSET CONFIRMED */
+.asset-confirmed {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: #E2EFDA;
+  border-radius: 10px;
+  border: 1px solid #70AD47;
+}
+.asset-confirmed .num { font-size: 18px; font-weight: 700; color: #3B6D11; flex: 1; }
+.asset-confirmed .type { font-size: 11px; color: #3B6D11; font-weight: 600; }
+.asset-check {
+  width: 24px; height: 24px; background: #70AD47; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.asset-check svg { width: 13px; height: 13px; stroke: white; fill: none; stroke-width: 2.5; }
+
+/* SCAN BTN */
+.scan-btn {
+  width: 100%;
+  padding: 14px;
+  border: 2px dashed #2E5597;
+  border-radius: 12px;
+  background: #E5F2F1;
+  color: #2E5597;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+}
+.scan-btn.scanning { border-color: #ED7D31; background: #FFF2CC; color: #ED7D31; }
+#reader { border-radius: 8px; overflow: hidden; margin-top: 10px; display: none; }
+.or-divider { text-align: center; font-size: 11px; color: #bbb; margin: 8px 0; }
+
+/* PARTS LIST */
+.parts-list { margin-bottom: 12px; }
+.part-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  gap: 10px;
+}
+.part-item:last-child { margin-bottom: 0; }
+.part-info { flex: 1; min-width: 0; }
+.part-desc { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.part-qty  { font-size: 11px; color: #2E5597; font-weight: 700; margin-top: 2px; }
+.part-remove {
+  background: none;
+  border: none;
+  color: #C00000;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.empty-parts {
+  text-align: center;
+  padding: 20px;
+  color: #bbb;
+  font-size: 13px;
+  border: 1.5px dashed #e0e0e0;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+/* ADD PART ROW */
+.add-part-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.add-part-row .input-wrap { flex: 1; }
+.add-part-row .qty-wrap { width: 72px; }
+.add-part-row label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.add-part-row input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.add-part-row input:focus { outline: none; border-color: #2E5597; }
+.btn-add-part {
+  width: 100%;
+  padding: 12px;
+  background: #f0f2f5;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0E5A57;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.btn-add-part:hover { background: #e8eaed; }
+.btn-add-part:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* SUBMIT */
+.submit-btn {
+  width: 100%;
+  padding: 17px;
+  border: none;
+  border-radius: 14px;
+  background: #C00000;
+  color: white;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+.submit-btn:hover   { background: #a00000; }
+.submit-btn:active  { transform: scale(0.98); }
+.submit-btn:disabled { background: #ccc; color: #999; cursor: not-allowed; transform: none; }
+
+/* SUCCESS */
+.success-view {
+  display: none;
+  text-align: center;
+  padding: 40px 20px;
+}
+.success-view .big-check {
+  width: 72px; height: 72px; background: #70AD47; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+}
+.success-view .big-check svg { width: 36px; height: 36px; stroke: white; fill: none; stroke-width: 2.5; }
+.success-view h2 { font-size: 22px; font-weight: 700; color: #0E5A57; }
+.success-view p  { font-size: 13px; color: #666; margin-top: 6px; }
+.next-btn {
+  margin-top: 20px; padding: 14px 32px;
+  background: #0E5A57; border: none; border-radius: 10px;
+  color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  padding: 12px 24px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: white;
+  opacity: 0; transition: all 0.3s; z-index: 999;
+  max-width: 340px; text-align: center;
+}
+.toast.success { background: #3B6D11; }
+.toast.error   { background: #A32D2D; }
+.toast.show    { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="header-back" href="index.html">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+  </a>
+  <div class="header-text">
+    <h1>Parts Request</h1>
+    <p>Request parts without a downtime incident</p>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- FORM VIEW -->
+  <div id="formView">
+
+    <!-- Step 1: Mechanic -->
+    <div class="card">
+      <div class="card-title">Step 1 — Your details</div>
+      <div class="field">
+        <label>Your name</label>
+        <select id="mechName" onchange="saveMechName(); checkReady();" data-fill="mechanics"><option value="">Select your name...</option></select>
+      </div>
+      <div class="field">
+        <label>Reason for request</label>
+        <div class="reason-grid">
+          <button class="reason-btn" onclick="selectReason('Setup', this)">⚙️ Setup</button>
+          <button class="reason-btn" onclick="selectReason('PM', this)">🔧 PM Service</button>
+          <button class="reason-btn" onclick="selectReason('Line Changeover', this)">🔄 Line Changeover</button>
+          <button class="reason-btn" onclick="selectReason('Other', this)">📝 Other</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Asset -->
+    <div class="card">
+      <div class="card-title">Step 2 — Asset</div>
+      <button class="scan-btn" id="scanBtn" onclick="toggleScanner()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/>
+        </svg>
+        Scan Machine Barcode
+      </button>
+      <div id="reader"></div>
+      <div class="or-divider">— or enter manually —</div>
+      <input type="text" id="assetInput" placeholder="Enter asset number..."
+        oninput="handleAssetInput(this.value)" style="margin-top:0;">
+      <div class="asset-confirmed" id="assetConfirmed">
+        <div style="flex:1">
+          <div class="num" id="assetVal"></div>
+          <div class="type" id="assetType"></div>
+        </div>
+        <div class="asset-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>
+      </div>
+
+      <div class="field" style="margin-top:14px;margin-bottom:0;">
+        <label>Line</label>
+        <select id="lineSelect" onchange="checkReady()" data-fill="partsLocations"><option value="">Select line...</option></select>
+      </div>
+    </div>
+
+    <!-- Step 3: Parts -->
+    <div class="card">
+      <div class="card-title">Step 3 — Parts needed</div>
+
+      <div class="parts-list" id="partsList">
+        <div class="empty-parts" id="emptyParts">No parts added yet — use the fields below</div>
+      </div>
+
+      <div class="add-part-row">
+        <div class="input-wrap">
+          <label>Part description</label>
+          <input type="text" id="partDesc" placeholder="e.g. Feed dog, Needle bar..."
+            onkeydown="if(event.key==='Enter'){event.preventDefault(); addPart();}">
+        </div>
+        <div class="qty-wrap">
+          <label>Qty</label>
+          <input type="number" id="partQty" value="1" min="1" max="99">
+        </div>
+      </div>
+      <button class="btn-add-part" id="addPartBtn" onclick="addPart()">+ Add Part</button>
+    </div>
+
+    <!-- Notes -->
+    <div class="card">
+      <div class="card-title">Notes (optional)</div>
+      <textarea id="notes" placeholder="Any additional info for the workshop..."></textarea>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitRequest()" disabled>
+      Submit Parts Request
+    </button>
+
+  </div>
+
+  <!-- SUCCESS VIEW -->
+  <div class="success-view" id="successView">
+    <div class="card">
+      <div class="big-check"><svg viewBox="0 0 36 36"><polyline points="6,18 14,26 30,10"/></svg></div>
+      <h2>Request Sent</h2>
+      <p id="successDetail">Parts request submitted to workshop</p>
+      <p style="font-size:12px;color:#aaa;margin-top:8px;">The clerk has been notified and will prepare your parts</p>
+      <button class="next-btn" onclick="resetForm()">New Request</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+let currentAsset      = '';
+let currentMachineType = '';
+let currentReason     = '';
+let pendingParts      = [];
+let scanner           = null;
+let scannerActive     = false;
+
+// Guards against double-fire / double-submit
+let addingPart   = false;
+let isSubmitting = false;
+
+// One ID per form-fill session — reused if a submit needs retrying, so the
+// database unique constraint can recognise "same batch, try again" vs a
+// genuinely new request.
+let currentBatchId = generateBatchId();
+
+function generateBatchId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// ── BARCODE ───────────────────────────────────────────────────────────────────
+function cleanBarcode(val) {
+  return (val || '').replace(/\s+/g, '').toUpperCase();
+}
+function isValidBarcode(val) {
+  if (/^\d+$/.test(val)) return val.length >= 5;
+  return val.length >= 6 && val.length <= 7;
+}
+
+// ── SCANNER ───────────────────────────────────────────────────────────────────
+function toggleScanner() {
+  scannerActive ? stopScanner() : startScanner();
+}
+
+function startScanner() {
+  const btn = document.getElementById('scanBtn');
+  btn.classList.add('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
+  document.getElementById('reader').style.display = 'block';
+  scannerActive = true;
+
+  let lastRead = '', lastReadTime = 0;
+  const DEBOUNCE_MS = 300;
+
+  scanner = new Html5Qrcode('reader');
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 100 } },
+    (decoded) => {
+      const clean = cleanBarcode(decoded);
+      const now   = Date.now();
+      if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
+        if (!isValidBarcode(clean)) {
+          showToast('Invalid barcode — check and try again.', 'error');
+          lastRead = ''; lastReadTime = 0; return;
+        }
+        document.getElementById('assetInput').value = clean;
+        handleAssetInput(clean);
+        stopScanner();
+        showToast('Barcode scanned!', 'success');
+      } else {
+        lastRead = clean; lastReadTime = now;
+      }
+    }, () => {}
+  ).catch(() => {
+    showToast('Camera blocked. Use manual entry.', 'error');
+    stopScanner();
+  });
+}
+
+function stopScanner() {
+  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
+  document.getElementById('reader').style.display = 'none';
+  const btn = document.getElementById('scanBtn');
+  btn.classList.remove('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg> Scan Machine Barcode`;
+  scannerActive = false;
+}
+
+// ── ASSET INPUT ───────────────────────────────────────────────────────────────
+let lookupTimer = null;
+function handleAssetInput(raw) {
+  const val = cleanBarcode(raw);
+  document.getElementById('assetInput').value = val;
+  const conf = document.getElementById('assetConfirmed');
+  conf.style.display = 'none';
+  currentAsset = '';
+  currentMachineType = '';
+  clearTimeout(lookupTimer);
+  if (!val || !isValidBarcode(val)) { checkReady(); return; }
+  currentAsset = val;
+  document.getElementById('assetVal').textContent  = val;
+  document.getElementById('assetType').textContent = 'Looking up...';
+  document.getElementById('assetType').style.color = '#888';
+  conf.style.display = 'flex';
+  lookupTimer = setTimeout(() => lookupAsset(val), 400);
+}
+
+async function lookupAsset(val) {
+  try {
+    const res  = await fetch(API_BASE + '/master-data?asset_no=' + encodeURIComponent(val));
+    const row  = await res.json();
+    if (row && row.asset_type) {
+      currentMachineType = row.asset_type;
+      document.getElementById('assetType').textContent = 'Type: ' + currentMachineType;
+      document.getElementById('assetType').style.color = '#3B6D11';
+    } else {
+      currentMachineType = 'Unknown';
+      document.getElementById('assetType').textContent = 'Not found in master data';
+      document.getElementById('assetType').style.color = '#888';
+    }
+  } catch(e) {
+    currentMachineType = 'Unknown';
+    document.getElementById('assetType').textContent = 'Connection issue — saved as Unknown';
+    document.getElementById('assetType').style.color = '#C00000';
+  }
+  checkReady();
+}
+
+// ── REASON SELECTOR ───────────────────────────────────────────────────────────
+function selectReason(reason, btn) {
+  currentReason = reason;
+  document.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  checkReady();
+}
+
+// ── PARTS ─────────────────────────────────────────────────────────────────────
+// Guarded against double-fire (fast double-tap, or Enter-key + button click
+// racing each other) and merges same-description entries instead of creating
+// duplicate rows.
+function addPart() {
+  if (addingPart) return;
+  addingPart = true;
+  const addBtn = document.getElementById('addPartBtn');
+  addBtn.disabled = true;
+
+  try {
+    const descInput = document.getElementById('partDesc');
+    const desc = descInput.value.trim();
+    const qty  = parseInt(document.getElementById('partQty').value) || 1;
+
+    if (!desc) {
+      showToast('Please describe the part needed.', 'error');
+      return;
+    }
+
+    const existing = pendingParts.find(
+      p => p.description.toLowerCase() === desc.toLowerCase()
+    );
+    if (existing) {
+      existing.quantity += qty;
+      showToast('Updated quantity for ' + existing.description + '.', 'success');
+    } else {
+      pendingParts.push({ description: desc, quantity: qty });
+      showToast('Part added.', 'success');
+    }
+
+    descInput.value = '';
+    document.getElementById('partQty').value = 1;
+    descInput.focus();
+    renderParts();
+    checkReady();
+  } finally {
+    addBtn.disabled = false;
+    addingPart = false;
+  }
+}
+
+function removePart(idx) {
+  pendingParts.splice(idx, 1);
+  renderParts();
+  checkReady();
+}
+
+function renderParts() {
+  const list  = document.getElementById('partsList');
+  const empty = document.getElementById('emptyParts');
+  if (pendingParts.length === 0) {
+    list.innerHTML = '';
+    list.appendChild(empty);
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = pendingParts.map((p, i) => `
+    <div class="part-item">
+      <div class="part-info">
+        <div class="part-desc">${p.description}</div>
+        <div class="part-qty">x${p.quantity}</div>
+      </div>
+      <button class="part-remove" onclick="removePart(${i})">×</button>
+    </div>`).join('');
+}
+
+// ── VALIDATION ────────────────────────────────────────────────────────────────
+function checkReady() {
+  const ready =
+    document.getElementById('mechName').value &&
+    currentReason &&
+    currentAsset &&
+    document.getElementById('lineSelect').value &&
+    pendingParts.length > 0;
+  document.getElementById('submitBtn').disabled = !ready;
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
+// Guarded with isSubmitting (blocks re-entrant calls, not just re-clicks) and
+// stamps every row with the same request_batch_id for this form-fill, so a
+// retried submission after a dropped connection can be recognised/blocked by
+// the database unique constraint instead of creating duplicate rows.
+async function submitRequest() {
+  if (isSubmitting) return;
+  isSubmitting = true;
+
+  const btn      = document.getElementById('submitBtn');
+  const mechName = document.getElementById('mechName').value;
+  const line     = document.getElementById('lineSelect').value;
+  const notes    = document.getElementById('notes').value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  const payloads = pendingParts.map(p => ({
+    job_card_id      : null,
+    asset_no         : currentAsset,
+    machine_type     : currentMachineType || 'Unknown',
+    line             : line,
+    mechanic         : mechName,
+    part_no          : '',
+    part_description : p.description,
+    quantity         : p.quantity,
+    status           : 'Pending',
+    requested_time   : new Date().toISOString(),
+    request_reason   : currentReason,
+    notes            : notes || null,
+    request_batch_id : currentBatchId
+  }));
+
+  try {
+    const res = await fetch(API_BASE + '/parts-requests', {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json'
+      },
+      body: JSON.stringify(payloads)
+    });
+
+    if (res.ok || res.status === 201) {
+      const partCount = pendingParts.length;
+      document.getElementById('successDetail').textContent =
+        partCount + ' part' + (partCount > 1 ? 's' : '') + ' requested for ' +
+        currentAsset + ' — ' + line + ' (' + currentReason + ')';
+      document.getElementById('formView').style.display    = 'none';
+      document.getElementById('successView').style.display = 'block';
+    } else if (res.status === 409) {
+      // Unique constraint hit: this exact batch already made it to the DB
+      // on a prior attempt (e.g. connection dropped after insert succeeded).
+      // Treat as success rather than letting the user submit a third time.
+      const partCount = pendingParts.length;
+      document.getElementById('successDetail').textContent =
+        partCount + ' part' + (partCount > 1 ? 's' : '') + ' requested for ' +
+        currentAsset + ' — ' + line + ' (' + currentReason + ')';
+      document.getElementById('formView').style.display    = 'none';
+      document.getElementById('successView').style.display = 'block';
+    } else {
+      const err = await res.text();
+      // If the request_reason / notes / request_batch_id column doesn't
+      // exist yet, retry without them
+      if (err.includes('request_reason') || err.includes('notes') || err.includes('request_batch_id')) {
+        await submitLegacy(payloads, btn);
+      } else {
+        showToast('Submission failed. Please try again.', 'error');
+        btn.disabled    = false;
+        btn.textContent = 'Submit Parts Request';
+      }
+    }
+  } catch(e) {
+    showToast('Connection error.', 'error');
+    btn.disabled    = false;
+    btn.textContent = 'Submit Parts Request';
+  } finally {
+    isSubmitting = false;
+  }
+}
+
+// Fallback if request_reason / notes / request_batch_id columns not yet added to the database
+async function submitLegacy(payloads, btn) {
+  const stripped = payloads.map(({ request_reason, notes, request_batch_id, ...rest }) => rest);
+  try {
+    const res = await fetch(API_BASE + '/parts-requests', {
+      method  : 'POST',
+      headers : {
+        'Content-Type' : 'application/json'
+      },
+      body: JSON.stringify(stripped)
+    });
+    if (res.ok || res.status === 201) {
+      const partCount = pendingParts.length;
+      document.getElementById('successDetail').textContent =
+        partCount + ' part' + (partCount > 1 ? 's' : '') + ' requested for ' +
+        currentAsset + ' — ' + document.getElementById('lineSelect').value;
+      document.getElementById('formView').style.display    = 'none';
+      document.getElementById('successView').style.display = 'block';
+    } else {
+      showToast('Submission failed. Please try again.', 'error');
+      btn.disabled    = false;
+      btn.textContent = 'Submit Parts Request';
+    }
+  } catch(e) {
+    showToast('Connection error.', 'error');
+    btn.disabled    = false;
+    btn.textContent = 'Submit Parts Request';
+  }
+}
+
+// ── RESET ─────────────────────────────────────────────────────────────────────
+function resetForm() {
+  currentAsset       = '';
+  currentMachineType = '';
+  currentReason      = '';
+  pendingParts       = [];
+  currentBatchId     = generateBatchId(); // fresh ID for the next request
+
+  document.getElementById('assetInput').value       = '';
+  document.getElementById('assetConfirmed').style.display = 'none';
+  document.getElementById('lineSelect').value       = '';
+  document.getElementById('partDesc').value         = '';
+  document.getElementById('partQty').value          = 1;
+  document.getElementById('notes').value            = '';
+  document.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('active'));
+  renderParts();
+
+  // Restore saved mechanic name
+  loadMechName();
+
+  document.getElementById('submitBtn').disabled    = true;
+  document.getElementById('submitBtn').textContent = 'Submit Parts Request';
+  document.getElementById('formView').style.display    = 'block';
+  document.getElementById('successView').style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+// ── MECHANIC NAME PERSISTENCE ─────────────────────────────────────────────────
+function saveMechName() {
+  const val = document.getElementById('mechName').value;
+  if (val) try { localStorage.setItem('pcnsew_mechanic', val); } catch(e) {}
+}
+function loadMechName() {
+  try {
+    const saved = localStorage.getItem('pcnsew_mechanic');
+    if (saved) document.getElementById('mechName').value = saved;
+  } catch(e) {}
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+pcnFillSelects();
+loadMechName();
+</script>
+</body>
+</html>
