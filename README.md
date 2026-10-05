@@ -1,4 +1,4 @@
-# PCN Sewing — Downtime & Maintenance Tools
+# PCN Sewing — Downtime & Maintenance Tools & Asset Care
 
 Sewing-floor version of the PMT suite, on the Bullmer framework:
 GitHub → Cloudflare Worker (static assets + `/api`) → D1 database `pcn_app`.
