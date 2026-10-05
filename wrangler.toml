@@ -16,4 +16,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "pcn_app"
-database_id = "PASTE-PCN_APP-DATABASE-ID-HERE"
+database_id = "f819dc1c-602f-4cc4-bbfb-8ba4c5b13588"
