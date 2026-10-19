@@ -578,6 +578,12 @@ tbody td {
 .cond-average   { color: #8B6914; font-weight: 600; }
 .cond-poor      { color: #C00000; font-weight: 700; }
 
+/* Maintenance tab */
+.pm-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:-1px; }
+.pm-split { display:flex; height:10px; border-radius:4px; overflow:hidden; background:#f0f2f5; }
+.pm-split > div { height:100%; }
+@media (max-width: 900px) { #panel-maintenance .chart-grid { grid-template-columns: 1fr !important; } }
+
 /* Back to launcher — same style as Parts Request / PM */
 .home-back { display:flex; align-items:center; justify-content:center; width:32px; height:32px;
   border-radius:8px; background:rgba(255,255,255,0.12); text-decoration:none; flex-shrink:0; }
@@ -622,6 +628,7 @@ tbody td {
   <div class="dash-tabs">
     <div class="dash-tab active" onclick="switchDashTab('assets')">Asset Tracking</div>
     <div class="dash-tab" onclick="switchDashTab('downtime')">Downtime</div>
+    <div class="dash-tab" onclick="switchDashTab('maintenance')">Maintenance</div>
     <div class="dash-tab" onclick="switchDashTab('profile')">Asset Profile</div>
     <div class="dash-tab" onclick="switchDashTab('inventory')">Inventory</div>
     <div class="dash-tab" onclick="switchDashTab('linechange')">Line Change</div>
@@ -976,6 +983,125 @@ tbody td {
     </div>
 
   </div><!-- end panel-downtime -->
+  <!-- ═══ MAINTENANCE (PM RESULTS) PANEL ═══ -->
+  <div class="dash-panel" id="panel-maintenance">
+
+    <div class="filter-bar" style="position:sticky;top:60px;z-index:90;">
+      <label>Completed:</label>
+      <input type="date" id="pmDateFrom" onchange="renderPmTab()">
+      <span class="filter-sep">to</span>
+      <input type="date" id="pmDateTo" onchange="renderPmTab()">
+      <select id="pmSection" onchange="renderPmTab()" style="padding:8px 30px 8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;">
+        <option value="">All sections</option>
+      </select>
+      <select id="pmTier" onchange="renderPmTab()" style="padding:8px 30px 8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;">
+        <option value="">All tiers</option>
+        <option value="minor">Minor</option>
+        <option value="normal">Normal</option>
+        <option value="major">Major</option>
+      </select>
+      <button class="filter-clear" onclick="clearPmFilter()">Last 30 days</button>
+      <span class="filter-info" id="pmFilterInfo"></span>
+    </div>
+
+    <!-- KPIs -->
+    <div class="dt-kpi-grid">
+      <div class="dt-kpi blue">
+        <div class="dt-kpi-label">PMs completed</div>
+        <div class="dt-kpi-value" id="pmKpiDone">—</div>
+        <div class="dt-kpi-sub" id="pmKpiDoneSub">selected period</div>
+      </div>
+      <div class="dt-kpi green">
+        <div class="dt-kpi-label">Machines serviced</div>
+        <div class="dt-kpi-value" id="pmKpiMachines">—</div>
+        <div class="dt-kpi-sub">distinct assets</div>
+      </div>
+      <div class="dt-kpi orange">
+        <div class="dt-kpi-label">Items flagged</div>
+        <div class="dt-kpi-value" id="pmKpiFlagged">—</div>
+        <div class="dt-kpi-sub" id="pmKpiFlaggedSub">needing attention</div>
+      </div>
+      <div class="dt-kpi red">
+        <div class="dt-kpi-label">Poor condition</div>
+        <div class="dt-kpi-value" id="pmKpiPoor">—</div>
+        <div class="dt-kpi-sub">machines, latest PM</div>
+      </div>
+      <div class="dt-kpi red">
+        <div class="dt-kpi-label">Overdue now</div>
+        <div class="dt-kpi-value" id="pmKpiOverdue">—</div>
+        <div class="dt-kpi-sub">active schedules</div>
+      </div>
+      <div class="dt-kpi orange">
+        <div class="dt-kpi-label">Due in 7 days</div>
+        <div class="dt-kpi-value" id="pmKpiSoon">—</div>
+        <div class="dt-kpi-sub">active schedules</div>
+      </div>
+    </div>
+
+    <!-- Results by checklist item + condition -->
+    <div class="chart-grid" style="grid-template-columns:2fr 1fr;margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-title">Checklist results by item</div>
+        <div class="chart-sub">Outcome of every check in the selected PMs — sorted by most flagged</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#555;margin-bottom:10px;">
+          <span><span class="pm-dot" style="background:#3B6D11;"></span>OK</span>
+          <span><span class="pm-dot" style="background:#ED7D31;"></span>Attention</span>
+          <span><span class="pm-dot" style="background:#bbb;"></span>N/A</span>
+        </div>
+        <div id="pmItemResults" style="overflow-x:auto;"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Machine condition</div>
+        <div class="chart-sub">Latest PM per machine in the period</div>
+        <div id="pmConditionBreakdown"></div>
+      </div>
+    </div>
+
+    <!-- Overdue / due soon -->
+    <div class="lc-collapse-card" id="pmDueCard">
+      <div class="lc-collapse-header" onclick="toggleLcSection('pmDueBody','pmDueExpandLbl')">
+        <div class="lc-collapse-title">
+          <span>Overdue &amp; due soon</span>
+          <span id="pmDueBadge" class="lc-collapse-badge" style="background:#FCE4D6;color:#C00000;"></span>
+        </div>
+        <span class="lc-expand-lbl" id="pmDueExpandLbl">Expand &#9660;</span>
+      </div>
+      <div class="lc-collapse-body" id="pmDueBody"><div id="pmDueTable"></div></div>
+    </div>
+
+    <!-- Attention findings -->
+    <div class="lc-collapse-card" id="pmFindingsCard">
+      <div class="lc-collapse-header" onclick="toggleLcSection('pmFindingsBody','pmFindingsExpandLbl')">
+        <div class="lc-collapse-title">
+          <span>Attention findings</span>
+          <span id="pmFindingsBadge" class="lc-collapse-badge" style="background:#FFF2CC;color:#8B6914;"></span>
+        </div>
+        <span class="lc-expand-lbl" id="pmFindingsExpandLbl">Expand &#9660;</span>
+      </div>
+      <div class="lc-collapse-body" id="pmFindingsBody">
+        <div class="chart-sub" style="margin-bottom:10px;">Every checklist item a mechanic marked "Attention", with their note — newest first</div>
+        <div id="pmFindingsTable"></div>
+      </div>
+    </div>
+
+    <!-- PM log -->
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <div>
+          <div class="chart-title">PM results log</div>
+          <div class="chart-sub" style="margin:0;">Click any row to see all checklist results for that PM</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="pmSearch" placeholder="Search asset, mechanic, line..." oninput="renderPmLog()"
+            style="padding:8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;min-width:200px;">
+          <button onclick="exportPmCsv()" style="padding:8px 14px;background:#0E5A57;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Export CSV</button>
+        </div>
+      </div>
+      <div id="pmLogTable" style="overflow-x:auto;"></div>
+    </div>
+
+  </div><!-- end panel-maintenance -->
+
   <!-- ═══ ASSET PROFILE PANEL ═══ -->
   <div class="dash-panel" id="panel-profile">
 
@@ -1780,6 +1906,11 @@ async function refreshCurrentTab() {
         }
         // Not unlocked yet — silently skip. Never fetch PIN-gated data
         // in the background before the person has authenticated.
+        break;
+      }
+      case 'maintenance': {
+        await loadPmTab();
+        showToast('PM results refreshed — ' + pmLogsAll.length + ' records', 'success');
         break;
       }
       case 'profile': {
@@ -5856,6 +5987,347 @@ function renderMechIncidents(m, downtimePool) {
   section.style.display = 'block';
 }
 
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MAINTENANCE TAB — results of completed Preventative Maintenance
+// ═════════════════════════════════════════════════════════════════════════════
+let pmLogsAll = [], pmItemsAll = [], pmSchedAll = [];
+let pmView = { logs: [], itemsByLog: {} };
+
+const PM_COND_ORDER = ['Excellent', 'Good', 'Average', 'Poor'];
+const PM_COND_COLOR = { Excellent: '#27500A', Good: '#70AD47', Average: '#C9A84C', Poor: '#C00000' };
+
+function pmLocalDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function pmDaysBetween(a, b) {
+  return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+}
+
+async function loadPmTab() {
+  // Default window: last 30 days
+  if (!document.getElementById('pmDateFrom').value && !document.getElementById('pmDateTo').value) {
+    const d = new Date(); d.setDate(d.getDate() - 30);
+    document.getElementById('pmDateFrom').value = pmLocalDate(d);
+    document.getElementById('pmDateTo').value = pmLocalDate(new Date());
+  }
+  const sel = document.getElementById('pmSection');
+  if (sel.options.length === 1) {
+    PCN.sections.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.key; o.textContent = s.label + ' (L' + s.lines[0] + '–' + s.lines[1] + ')';
+      sel.appendChild(o);
+    });
+  }
+  document.getElementById('pmLogTable').innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading PM results...</p></div>';
+  try {
+    // All PM history is fetched once (date filtering happens in the page),
+    // plus the active schedules for the overdue / due-soon view.
+    const [resRes, schedRes] = await Promise.all([
+      fetch(API_BASE + '/pm-results'),
+      fetch(API_BASE + '/pm-schedules')
+    ]);
+    if (!resRes.ok || !schedRes.ok) throw new Error('Status ' + resRes.status + '/' + schedRes.status);
+    const res = await resRes.json();
+    pmLogsAll  = res.logs || [];
+    pmItemsAll = res.items || [];
+    pmSchedAll = await schedRes.json();
+    renderPmTab();
+  } catch (e) {
+    document.getElementById('pmLogTable').innerHTML =
+      '<div class="empty-state"><p>Could not load PM results. Have the PM tables been created in D1?</p></div>';
+    showToast('Could not load PM results.', 'error');
+  }
+}
+
+function clearPmFilter() {
+  document.getElementById('pmDateFrom').value = '';
+  document.getElementById('pmDateTo').value = '';
+  document.getElementById('pmSection').value = '';
+  document.getElementById('pmTier').value = '';
+  document.getElementById('pmSearch').value = '';
+  const d = new Date(); d.setDate(d.getDate() - 30);
+  document.getElementById('pmDateFrom').value = pmLocalDate(d);
+  document.getElementById('pmDateTo').value = pmLocalDate(new Date());
+  renderPmTab();
+}
+
+function pmSectionMatch(location, key) {
+  if (!key) return true;
+  const lines = PCN.sectionLines(key) || [];
+  return lines.includes(location);
+}
+
+function renderPmTab() {
+  const from = document.getElementById('pmDateFrom').value;
+  const to   = document.getElementById('pmDateTo').value;
+  const sec  = document.getElementById('pmSection').value;
+  const tier = document.getElementById('pmTier').value;
+
+  const logs = pmLogsAll.filter(l =>
+    (!from || l.completed_date >= from) &&
+    (!to   || l.completed_date <= to) &&
+    (!tier || l.service_type === tier) &&
+    pmSectionMatch(l.location, sec)
+  );
+  const ids = new Set(logs.map(l => l.id));
+  const itemsByLog = {};
+  pmItemsAll.forEach(i => {
+    if (!ids.has(i.pm_log_id)) return;
+    (itemsByLog[i.pm_log_id] = itemsByLog[i.pm_log_id] || []).push(i);
+  });
+  pmView = { logs, itemsByLog };
+
+  document.getElementById('pmFilterInfo').textContent =
+    logs.length + ' PM' + (logs.length !== 1 ? 's' : '') + ' in view';
+
+  renderPmKpis();
+  renderPmItemResults();
+  renderPmConditions();
+  renderPmDue(sec);
+  renderPmFindings();
+  renderPmLog();
+}
+
+function pmLatestPerAsset(logs) {
+  const latest = {};
+  logs.forEach(l => {
+    const cur = latest[l.asset_no];
+    if (!cur || l.completed_date > cur.completed_date || (l.completed_date === cur.completed_date && l.id > cur.id)) {
+      latest[l.asset_no] = l;
+    }
+  });
+  return Object.values(latest);
+}
+
+function renderPmKpis() {
+  const { logs, itemsByLog } = pmView;
+  const allItems = Object.values(itemsByLog).flat();
+  const flagged = allItems.filter(i => i.outcome === 'attention').length;
+  const checked = allItems.filter(i => i.outcome !== 'na').length;
+  const latest = pmLatestPerAsset(logs);
+  const today = pmLocalDate(new Date());
+  const sec = document.getElementById('pmSection').value;
+  const scheds = pmSchedAll.filter(s => !sec || pmSectionMatch(pmAssetLocation(s.asset_no), sec));
+  const overdue = scheds.filter(s => s.next_due_date < today).length;
+  const soon = scheds.filter(s => s.next_due_date >= today && pmDaysBetween(today, s.next_due_date) <= 7).length;
+  const unscheduled = logs.filter(l => l.was_scheduled === 0).length;
+
+  document.getElementById('pmKpiDone').textContent = logs.length;
+  document.getElementById('pmKpiDoneSub').textContent =
+    unscheduled ? unscheduled + ' unscheduled (no prior schedule)' : 'selected period';
+  document.getElementById('pmKpiMachines').textContent = new Set(logs.map(l => l.asset_no)).size;
+  document.getElementById('pmKpiFlagged').textContent = flagged;
+  document.getElementById('pmKpiFlaggedSub').textContent =
+    checked ? Math.round(flagged / checked * 100) + '% of ' + checked + ' checks' : 'needing attention';
+  document.getElementById('pmKpiPoor').textContent = latest.filter(l => l.machine_condition === 'Poor').length;
+  document.getElementById('pmKpiOverdue').textContent = overdue;
+  document.getElementById('pmKpiSoon').textContent = soon;
+}
+
+// Line a scheduled asset was last serviced on (best available location for
+// schedules, which don't store a line themselves)
+function pmAssetLocation(assetNo) {
+  const l = pmLogsAll.find(x => x.asset_no === assetNo && x.location);
+  return l ? l.location : null;
+}
+
+function renderPmItemResults() {
+  const el = document.getElementById('pmItemResults');
+  const allItems = Object.values(pmView.itemsByLog).flat();
+  if (allItems.length === 0) {
+    el.innerHTML = '<div class="search-placeholder">No PMs completed in the selected period.</div>';
+    return;
+  }
+  const byItem = {};
+  allItems.forEach(i => {
+    const key = i.item_order + '|' + i.item_text;
+    if (!byItem[key]) byItem[key] = { order: i.item_order, text: i.item_text, area: i.system_area, ok: 0, attention: 0, na: 0 };
+    byItem[key][i.outcome] = (byItem[key][i.outcome] || 0) + 1;
+  });
+  const rows = Object.values(byItem).sort((a, b) => b.attention - a.attention || a.order - b.order);
+
+  let html = '<table class="sl-table"><thead><tr><th>Check</th><th class="num">OK</th><th class="num">Attention</th><th class="num">N/A</th><th style="min-width:160px;">Split</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const total = r.ok + r.attention + r.na;
+    const w = n => total ? (n / total * 100) : 0;
+    const label = (r.text || '').split(' — ')[0];
+    html += '<tr>' +
+      '<td title="' + escAttr(r.text) + '"><strong style="font-size:13px;">' + escAttr(label) + '</strong>' +
+        '<div style="font-size:11px;color:#888;max-width:340px;">' + escAttr((r.text || '').split(' — ')[1] || '') + '</div></td>' +
+      '<td style="text-align:center;"><span class="count-pill pill-a">' + r.ok + '</span></td>' +
+      '<td style="text-align:center;"><span class="count-pill" style="background:#FFF2CC;color:#8B6914;">' + r.attention + '</span></td>' +
+      '<td style="text-align:center;color:#888;">' + r.na + '</td>' +
+      '<td><div class="pm-split">' +
+        '<div style="width:' + w(r.ok) + '%;background:#3B6D11;"></div>' +
+        '<div style="width:' + w(r.attention) + '%;background:#ED7D31;"></div>' +
+        '<div style="width:' + w(r.na) + '%;background:#bbb;"></div>' +
+      '</div><div style="font-size:10px;color:#888;margin-top:3px;">' +
+        (r.ok + r.attention ? Math.round(r.attention / (r.ok + r.attention) * 100) + '% flagged' : 'all N/A') +
+      '</div></td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderPmConditions() {
+  const el = document.getElementById('pmConditionBreakdown');
+  const latest = pmLatestPerAsset(pmView.logs);
+  if (latest.length === 0) {
+    el.innerHTML = '<div class="search-placeholder">No PMs in this period.</div>';
+    return;
+  }
+  const max = Math.max(1, ...PM_COND_ORDER.map(c => latest.filter(l => l.machine_condition === c).length));
+  el.innerHTML = PM_COND_ORDER.map(c => {
+    const n = latest.filter(l => l.machine_condition === c).length;
+    const pct = Math.round(n / latest.length * 100);
+    return '<div style="margin-bottom:12px;">' +
+      '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
+        '<span style="font-weight:600;color:' + PM_COND_COLOR[c] + ';">' + c + '</span>' +
+        '<span style="color:#555;"><strong>' + n + '</strong> <span style="color:#aaa;">(' + pct + '%)</span></span></div>' +
+      '<div style="background:#f0f2f5;border-radius:4px;height:10px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + (n / max * 100) + '%;background:' + PM_COND_COLOR[c] + ';border-radius:4px;"></div></div>' +
+    '</div>';
+  }).join('') +
+  '<div style="font-size:11px;color:#aaa;margin-top:6px;">' + latest.length + ' machine' + (latest.length !== 1 ? 's' : '') + ' — each counted once, by its most recent PM</div>';
+}
+
+function renderPmDue(sec) {
+  const today = pmLocalDate(new Date());
+  const rows = pmSchedAll
+    .filter(s => !sec || pmSectionMatch(pmAssetLocation(s.asset_no), sec))
+    .filter(s => s.next_due_date < today || pmDaysBetween(today, s.next_due_date) <= 7)
+    .sort((a, b) => a.next_due_date.localeCompare(b.next_due_date));
+  document.getElementById('pmDueBadge').textContent = rows.length + ' schedule' + (rows.length !== 1 ? 's' : '');
+  const el = document.getElementById('pmDueTable');
+  if (rows.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#3B6D11;font-size:13px;">Nothing overdue or due in the next 7 days.</div>';
+    return;
+  }
+  let html = '<table class="sl-table"><thead><tr><th>Asset</th><th>Type</th><th>Tier</th><th>Due</th><th>Status</th><th>Assigned to</th><th>Last done</th></tr></thead><tbody>';
+  rows.forEach(s => {
+    const diff = pmDaysBetween(today, s.next_due_date);
+    const status = diff < 0
+      ? '<span class="stock-badge stock-zero">' + Math.abs(diff) + 'd overdue</span>'
+      : '<span class="stock-badge stock-low">' + (diff === 0 ? 'Due today' : 'In ' + diff + 'd') + '</span>';
+    html += '<tr><td><strong>' + escAttr(s.asset_no) + '</strong></td>' +
+      '<td style="font-size:12px;color:#555;">' + escAttr(s.asset_type || '—') + '</td>' +
+      '<td><span class="pm-badge pm-' + escAttr(s.service_type) + '">' + escAttr(s.service_type) + '</span></td>' +
+      '<td style="font-size:12px;">' + escAttr(s.next_due_date) + '</td>' +
+      '<td>' + status + '</td>' +
+      '<td style="font-size:12px;">' + escAttr(s.assigned_to || '—') + '</td>' +
+      '<td style="font-size:12px;color:#888;">' + escAttr(s.last_done_date || 'never') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderPmFindings() {
+  const logById = {};
+  pmView.logs.forEach(l => { logById[l.id] = l; });
+  const findings = Object.values(pmView.itemsByLog).flat()
+    .filter(i => i.outcome === 'attention')
+    .map(i => ({ item: i, log: logById[i.pm_log_id] }))
+    .sort((a, b) => (b.log.completed_date || '').localeCompare(a.log.completed_date || '') || b.log.id - a.log.id);
+
+  document.getElementById('pmFindingsBadge').textContent = findings.length + ' flagged';
+  const el = document.getElementById('pmFindingsTable');
+  if (findings.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#3B6D11;font-size:13px;">No items flagged for attention in this period.</div>';
+    return;
+  }
+  let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Asset</th><th>Line</th><th>Check</th><th>Mechanic note</th><th>Mechanic</th></tr></thead><tbody>';
+  findings.slice(0, 300).forEach(f => {
+    html += '<tr><td style="font-size:12px;white-space:nowrap;">' + escAttr(f.log.completed_date) + '</td>' +
+      '<td><strong>' + escAttr(f.log.asset_no) + '</strong><div style="font-size:11px;color:#888;">' + escAttr(f.log.machine_type || '') + '</div></td>' +
+      '<td style="font-size:12px;">' + escAttr(f.log.location || '—') + '</td>' +
+      '<td style="font-size:12px;font-weight:600;">' + escAttr((f.item.item_text || '').split(' — ')[0]) + '</td>' +
+      '<td style="font-size:12px;color:#555;max-width:280px;">' + escAttr(f.item.item_note || '—') + '</td>' +
+      '<td style="font-size:12px;">' + escAttr(f.log.completed_by || '—') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  if (findings.length > 300) html += '<div style="text-align:center;padding:8px;color:#888;font-size:12px;">Showing newest 300 — narrow the date range to see the rest.</div>';
+  el.innerHTML = html;
+}
+
+let pmOpenLogId = null;
+function renderPmLog() {
+  const q = (document.getElementById('pmSearch').value || '').trim().toLowerCase();
+  const rows = pmView.logs.filter(l => !q ||
+    (l.asset_no || '').toLowerCase().includes(q) ||
+    (l.completed_by || '').toLowerCase().includes(q) ||
+    (l.location || '').toLowerCase().includes(q) ||
+    (l.machine_type || '').toLowerCase().includes(q));
+  const el = document.getElementById('pmLogTable');
+  if (rows.length === 0) {
+    el.innerHTML = '<div class="search-placeholder">' + (pmView.logs.length ? 'No PMs match the search.' : 'No PMs completed in the selected period.') + '</div>';
+    return;
+  }
+  let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Asset</th><th>Type</th><th>Line</th><th>Tier</th><th>Mechanic</th><th>Condition</th><th class="num">Flagged</th><th>Next due</th></tr></thead><tbody>';
+  rows.slice(0, 500).forEach(l => {
+    const items = pmView.itemsByLog[l.id] || [];
+    const flagged = items.filter(i => i.outcome === 'attention').length;
+    const condCls = ({ Excellent: 'cond-excellent', Good: 'cond-good', Average: 'cond-average', Poor: 'cond-poor' })[l.machine_condition] || '';
+    html += '<tr style="cursor:pointer;" onclick="togglePmLog(' + Number(l.id) + ')">' +
+      '<td style="font-size:12px;white-space:nowrap;">' + escAttr(l.completed_date) + '</td>' +
+      '<td><strong>' + escAttr(l.asset_no) + '</strong>' + (l.was_scheduled === 0 ? ' <span title="No schedule existed — created at PM time" style="font-size:10px;color:#888;">(unsched.)</span>' : '') + '</td>' +
+      '<td style="font-size:12px;color:#555;">' + escAttr(l.machine_type || '—') + '</td>' +
+      '<td style="font-size:12px;">' + escAttr(l.location || '—') + '</td>' +
+      '<td><span class="pm-badge pm-' + escAttr(l.service_type) + '">' + escAttr(l.service_type || '—') + '</span></td>' +
+      '<td style="font-size:12px;">' + escAttr(l.completed_by || '—') + '</td>' +
+      '<td class="' + condCls + '" style="font-size:12px;">' + escAttr(l.machine_condition || '—') + '</td>' +
+      '<td style="text-align:center;">' + (flagged ? '<span class="count-pill" style="background:#FFF2CC;color:#8B6914;">' + flagged + '</span>' : '<span style="color:#3B6D11;">✓</span>') + '</td>' +
+      '<td style="font-size:12px;color:#888;">' + escAttr(l.next_due_date || '—') + '</td></tr>';
+    if (pmOpenLogId === l.id) html += '<tr><td colspan="9" style="background:#f8f9fa;padding:12px 16px;">' + pmDetailHtml(l, items) + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  if (rows.length > 500) html += '<div style="text-align:center;padding:8px;color:#888;font-size:12px;">Showing newest 500 — narrow the date range or search.</div>';
+  el.innerHTML = html;
+}
+
+function togglePmLog(id) {
+  pmOpenLogId = pmOpenLogId === id ? null : id;
+  renderPmLog();
+}
+
+function pmDetailHtml(l, items) {
+  const color = { ok: '#3B6D11', attention: '#ED7D31', na: '#888' };
+  const label = { ok: 'OK', attention: 'Attention', na: 'N/A' };
+  let html = '<div style="display:grid;gap:6px;">';
+  items.forEach(i => {
+    html += '<div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;">' +
+      '<span style="min-width:78px;text-align:center;padding:2px 8px;border-radius:10px;font-weight:700;font-size:10px;text-transform:uppercase;color:white;background:' + color[i.outcome] + ';">' + label[i.outcome] + '</span>' +
+      '<div><div style="color:#1a1a1a;">' + escAttr(i.item_text) + '</div>' +
+      (i.item_note ? '<div style="color:#8B6914;margin-top:2px;">Note: ' + escAttr(i.item_note) + '</div>' : '') +
+      '</div></div>';
+  });
+  html += '</div>';
+  if (l.overall_note) html += '<div style="margin-top:10px;font-size:12px;color:#555;"><strong>General comment:</strong> ' + escAttr(l.overall_note) + '</div>';
+  html += '<div style="margin-top:10px;"><button onclick="event.stopPropagation();openAssetProfile(\'' + escAttr(l.asset_no).replace(/'/g, "\\'") + '\')" style="padding:5px 12px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Open asset profile</button></div>';
+  return html;
+}
+
+function exportPmCsv() {
+  const { logs, itemsByLog } = pmView;
+  if (logs.length === 0) { showToast('No PM results to export.', 'error'); return; }
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const headers = ['Completed', 'Asset', 'Machine type', 'Line', 'Tier', 'Mechanic', 'Condition', 'Scheduled', 'Next due', 'Item', 'Outcome', 'Item note', 'General comment'];
+  const rows = [];
+  logs.forEach(l => {
+    (itemsByLog[l.id] || [{}]).forEach(i => {
+      rows.push([l.completed_date, l.asset_no, l.machine_type, l.location, l.service_type, l.completed_by,
+        l.machine_condition, l.was_scheduled === 0 ? 'No' : 'Yes', l.next_due_date,
+        i.item_text, i.outcome, i.item_note, l.overall_note].map(q).join(','));
+    });
+  });
+  const blob = new Blob([[headers.join(','), ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'PCN_Sewing_PM_Results_' + pmLocalDate(new Date()) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Exported ' + logs.length + ' PMs', 'success');
+}
+
 // ── DASHBOARD TAB SWITCHING ───────────────────────────────────────────────────
 function switchDashTab(tab) {
   // Mechanics tab is PIN-gated. Unlock persists for the current page session
@@ -5873,7 +6345,7 @@ function switchDashTab(tab) {
   // knows which data source to refresh instead of always hitting scan_log.
   currentDashTab = tab;
 
-  const tabs = ['assets','downtime','profile','inventory','linechange','mechanics'];
+  const tabs = ['assets','downtime','maintenance','profile','inventory','linechange','mechanics'];
   document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
@@ -5882,6 +6354,7 @@ function switchDashTab(tab) {
   if (tab === 'profile')    { lcAssets = []; } // reset asset cache so it rebuilds from latest data
   if (tab === 'inventory')  loadInventoryData();
   if (tab === 'mechanics')  loadMechanicsData();
+  if (tab === 'maintenance') loadPmTab();
 }
 
 // ── INITIALISATION ────────────────────────────────────────────────────────────
