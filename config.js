@@ -134,4 +134,9 @@ const MACHINE_TYPES = [
   { code: 'ROUCH',           desc: 'ROUCHING MACHINE' },
   { code: 'STD',             desc: 'STUD MACHINE' },
   { code: 'ZIGZAG ST',       desc: 'ZIG ZAG STITCH MACHINE' },
+  { code: 'PRSBRD',          desc: 'PRESSING BOARD' },
+  { code: 'MBL/BOILER',      desc: 'MOBILE BOILER' },
+  { code: 'BAG/MC',          desc: 'BAGGING MACHINE' },
+  { code: 'BNT',             desc: 'BACK NECK TRANSFER' },
+  { code: 'HTP',             desc: 'HEAT PRESS' }
 ];
