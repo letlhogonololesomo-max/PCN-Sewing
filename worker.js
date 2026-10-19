@@ -636,6 +636,32 @@ async function postPmComplete(request, env) {
   return json({ log_id: results[0].meta.last_row_id, next_due_date: nextDue }, 201);
 }
 
+// PM results for the dashboard Maintenance tab: completed PM logs in a date
+// range plus every checklist result belonging to them, in one round trip.
+async function getPmResults(request, env) {
+  const url = new URL(request.url);
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
+
+  let where = 'WHERE 1=1';
+  const binds = [];
+  if (isDate(from)) { where += ' AND completed_date >= ?'; binds.push(from); }
+  if (isDate(to))   { where += ' AND completed_date <= ?'; binds.push(to); }
+
+  const [logs, items] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT * FROM pm_log ${where} ORDER BY completed_date DESC, id DESC LIMIT 5000`
+    ).bind(...binds),
+    env.DB.prepare(
+      `SELECT pm_log_id, item_order, item_text, system_area, outcome, item_note
+       FROM pm_log_items
+       WHERE pm_log_id IN (SELECT id FROM pm_log ${where} ORDER BY completed_date DESC, id DESC LIMIT 5000)
+       ORDER BY pm_log_id, item_order`
+    ).bind(...binds)
+  ]);
+  return json({ logs: logs.results, items: items.results });
+}
+
 // ── database size (dashboard storage bar) ────────────────────────────────
 async function getDbSize(request, env) {
   const result = await env.DB.prepare('SELECT 1').run();
@@ -736,6 +762,7 @@ async function route(request, env) {
     return patchPmSchedules(request, env, m[1]);
   }
   if (pathname === '/api/pm-complete' && method === 'POST') return postPmComplete(request, env);
+  if (pathname === '/api/pm-results' && method === 'GET') return getPmResults(request, env);
   if (pathname === '/api/db-size' && method === 'GET') return getDbSize(request, env);
   if (pathname === '/api/notify' && method === 'POST') return postNotify(request, env);
 
