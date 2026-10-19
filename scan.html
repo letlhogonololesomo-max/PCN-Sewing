@@ -236,6 +236,15 @@
     font-family: inherit;
   }
   #mtConfirmCard .field input[type="text"]:focus { outline: none; border-color: #ED7D31; }
+
+/* Back to launcher — same style as Parts Request / PM */
+.home-back { display:flex; align-items:center; justify-content:center; width:32px; height:32px;
+  border-radius:8px; background:rgba(255,255,255,0.12); text-decoration:none; flex-shrink:0; }
+.home-back:active { background:rgba(255,255,255,0.25); }
+.home-back svg { width:16px; height:16px; stroke:white; fill:none; stroke-width:2.5;
+  stroke-linecap:round; stroke-linejoin:round; }
+.header { position: relative; }
+.header .home-back { position:absolute; left:16px; top:50%; transform:translateY(-50%); }
 </style>
 </head>
 <body>
@@ -245,6 +254,7 @@
 </div>
 
 <div class="header">
+  <a class="home-back" href="index.html" aria-label="Back to tools" title="Back to tools"><svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg></a>
   <h1>PCN Asset Tracker</h1>
   <p>Sewing floor asset scanning</p>
 </div>
