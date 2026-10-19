@@ -577,12 +577,20 @@ tbody td {
 .cond-good      { color: #3B6D11; font-weight: 600; }
 .cond-average   { color: #8B6914; font-weight: 600; }
 .cond-poor      { color: #C00000; font-weight: 700; }
+
+/* Back to launcher — same style as Parts Request / PM */
+.home-back { display:flex; align-items:center; justify-content:center; width:32px; height:32px;
+  border-radius:8px; background:rgba(255,255,255,0.12); text-decoration:none; flex-shrink:0; }
+.home-back:active { background:rgba(255,255,255,0.25); }
+.home-back svg { width:16px; height:16px; stroke:white; fill:none; stroke-width:2.5;
+  stroke-linecap:round; stroke-linejoin:round; }
 </style>
 </head>
 <body>
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
+    <a class="home-back" href="index.html" aria-label="Back to tools" title="Back to tools"><svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg></a>
     <div>
       <div class="header h1" style="font-size:18px;font-weight:600;">PCN Sewing Floor</div>
       <div class="header-sub">Downtime &amp; maintenance dashboard</div>
