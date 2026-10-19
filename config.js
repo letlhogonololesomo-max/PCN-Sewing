@@ -138,5 +138,6 @@ const MACHINE_TYPES = [
   { code: 'MBL/BOILER',      desc: 'MOBILE BOILER' },
   { code: 'BAG/MC',          desc: 'BAGGING MACHINE' },
   { code: 'BNT',             desc: 'BACK NECK TRANSFER' },
+  { code: 'BNP',             desc: 'BACK NECK PAINT' },
   { code: 'HTP',             desc: 'HEAT PRESS' }
 ];
