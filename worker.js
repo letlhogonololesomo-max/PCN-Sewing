@@ -32,6 +32,39 @@ async function getMasterData(request, env) {
     return json(row || null);
   }
 
+  // Distinct machine types (PM scheduling "by asset type" dropdown)
+  if (url.searchParams.get('types')) {
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT asset_type FROM master_data
+       WHERE asset_type IS NOT NULL AND asset_type <> '' ORDER BY asset_type`
+    ).all();
+    return json(results.map(r => r.asset_type));
+  }
+
+  // All assets of one machine type
+  const assetType = url.searchParams.get('asset_type');
+  if (assetType) {
+    const { results } = await env.DB.prepare(
+      'SELECT asset_no, asset_type FROM master_data WHERE asset_type = ? ORDER BY asset_no'
+    ).bind(assetType).all();
+    return json(results);
+  }
+
+  // Assets whose LATEST scan is at a location (PM scheduling "by line")
+  const location = url.searchParams.get('location');
+  if (location) {
+    const { results } = await env.DB.prepare(
+      `SELECT m.asset_no, m.asset_type FROM master_data m
+       JOIN (
+         SELECT asset_no, location,
+                ROW_NUMBER() OVER (PARTITION BY asset_no ORDER BY scan_timestamp DESC) AS rn
+         FROM scan_log
+       ) s ON s.asset_no = m.asset_no AND s.rn = 1
+       WHERE s.location = ? ORDER BY m.asset_no`
+    ).bind(location).all();
+    return json(results);
+  }
+
   const { results } = await env.DB.prepare(
     'SELECT asset_no, asset_type FROM master_data ORDER BY asset_no'
   ).all();
@@ -471,6 +504,138 @@ async function getPmLog(request, env) {
   return json(results);
 }
 
+// ── preventative maintenance ─────────────────────────────────────────────
+const addDays = (dateStr, days) => {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + Number(days));
+  return d.toISOString().slice(0, 10);
+};
+// Today's date in South Africa (UTC+2), for when the page doesn't send one
+const saToday = () => new Date(Date.now() + 2 * 3600 * 1000).toISOString().slice(0, 10);
+const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+
+async function getPmChecklist(request, env) {
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM pm_checklist_items WHERE active = 1 ORDER BY item_order'
+  ).all();
+  return json(results);
+}
+
+async function getPmSchedules(request, env) {
+  const assetNo = new URL(request.url).searchParams.get('asset_no');
+  if (assetNo) {
+    const { results } = await env.DB.prepare(
+      'SELECT * FROM pm_schedules WHERE asset_no = ? AND active = 1 ORDER BY next_due_date'
+    ).bind(assetNo).all();
+    return json(results);
+  }
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM pm_schedules WHERE active = 1 ORDER BY next_due_date LIMIT 300'
+  ).all();
+  return json(results);
+}
+
+// Create one or many schedules. A machine that already has an ACTIVE
+// schedule of the same tier is skipped by the unique index (INSERT OR
+// IGNORE), so double-taps and overlapping supervisors can't make duplicates.
+async function postPmSchedules(request, env) {
+  const body = await request.json();
+  const rows = Array.isArray(body) ? body : [body];
+  if (rows.length === 0) return json({ error: 'No schedules to create' }, 400);
+
+  const tiers = ['minor', 'normal', 'major'];
+  const now = new Date().toISOString();
+  const stmt = env.DB.prepare(
+    `INSERT OR IGNORE INTO pm_schedules
+       (asset_no, asset_type, service_type, frequency_days, next_due_date,
+        assigned_to, scope_origin, created_by, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+     RETURNING *`
+  );
+  const batch = [];
+  for (const r of rows) {
+    const freq = parseInt(r.frequency_days, 10);
+    if (!r.asset_no || !tiers.includes(r.service_type) || !freq || freq < 1) {
+      return json({ error: 'Each schedule needs asset_no, service_type (minor/normal/major) and frequency_days ≥ 1' }, 400);
+    }
+    batch.push(stmt.bind(
+      r.asset_no, r.asset_type || null, r.service_type, freq,
+      isDate(r.next_due_date) ? r.next_due_date : saToday(),
+      r.assigned_to || null, r.scope_origin || null, r.created_by || null, now, now
+    ));
+  }
+
+  const results = await env.DB.batch(batch);
+  const created = results.flatMap(r => r.results || []);
+  return json({ created, skipped: rows.length - created.length }, 201);
+}
+
+// Only switching a schedule off is allowed from the page
+async function patchPmSchedules(request, env, id) {
+  const body = await request.json();
+  if (body.active === undefined) return json({ error: 'active required' }, 400);
+  const result = await env.DB.prepare(
+    'UPDATE pm_schedules SET active = ?, updated_at = ? WHERE id = ?'
+  ).bind(body.active ? 1 : 0, new Date().toISOString(), id).run();
+  if (!result.meta.changes) return json({ error: 'Schedule not found' }, 404);
+  return json({ success: true });
+}
+
+// Complete a PM in ONE atomic D1 batch: the log header, every checklist
+// result, and the schedule's last/next dates either all save or none do.
+// The next due date is worked out here from the schedule's own frequency.
+async function postPmComplete(request, env) {
+  const b = await request.json();
+  const outcomes = ['ok', 'attention', 'na'];
+  if (!b.schedule_id || !b.asset_no || !b.completed_by || !b.machine_condition) {
+    return json({ error: 'schedule_id, asset_no, completed_by and machine_condition required' }, 400);
+  }
+  if (!Array.isArray(b.items) || b.items.length === 0 || b.items.some(i => !outcomes.includes(i.outcome))) {
+    return json({ error: 'Every checklist item needs an outcome (ok / attention / na)' }, 400);
+  }
+
+  const sched = await env.DB.prepare(
+    'SELECT id, service_type, frequency_days FROM pm_schedules WHERE id = ?'
+  ).bind(b.schedule_id).first();
+  if (!sched) return json({ error: 'Schedule not found' }, 404);
+
+  const done = isDate(b.completed_date) ? b.completed_date : saToday();
+  const nextDue = addDays(done, sched.frequency_days);
+  const now = new Date().toISOString();
+
+  const statements = [
+    env.DB.prepare(
+      `INSERT INTO pm_log
+         (schedule_id, asset_no, machine_type, location, service_type, completed_by,
+          completed_date, machine_condition, next_due_date, overall_note, was_scheduled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      sched.id, b.asset_no, b.asset_type || null, b.line || null, sched.service_type,
+      b.completed_by, done, b.machine_condition, nextDue, b.overall_note || null,
+      b.was_scheduled === false ? 0 : 1
+    )
+  ];
+  // Items attach to the log row just inserted. The batch runs as a single
+  // transaction, so MAX(id) here is guaranteed to be that row.
+  const itemStmt = env.DB.prepare(
+    `INSERT INTO pm_log_items (pm_log_id, item_order, item_text, system_area, outcome, item_note)
+     VALUES ((SELECT MAX(id) FROM pm_log), ?, ?, ?, ?, ?)`
+  );
+  for (const i of b.items) {
+    statements.push(itemStmt.bind(
+      i.item_order ?? null, i.item_text || '', i.system_area || null, i.outcome, i.item_note || null
+    ));
+  }
+  statements.push(
+    env.DB.prepare(
+      'UPDATE pm_schedules SET last_done_date = ?, next_due_date = ?, updated_at = ? WHERE id = ?'
+    ).bind(done, nextDue, now, sched.id)
+  );
+
+  const results = await env.DB.batch(statements);
+  return json({ log_id: results[0].meta.last_row_id, next_due_date: nextDue }, 201);
+}
+
 // ── database size (dashboard storage bar) ────────────────────────────────
 async function getDbSize(request, env) {
   const result = await env.DB.prepare('SELECT 1').run();
@@ -562,6 +727,15 @@ async function route(request, env) {
   }
 
   if (pathname === '/api/pm-log' && method === 'GET') return getPmLog(request, env);
+  if (pathname === '/api/pm-checklist' && method === 'GET') return getPmChecklist(request, env);
+  if (pathname === '/api/pm-schedules') {
+    if (method === 'GET')  return getPmSchedules(request, env);
+    if (method === 'POST') return postPmSchedules(request, env);
+  }
+  if ((m = pathname.match(/^\/api\/pm-schedules\/(\d+)$/)) && method === 'PATCH') {
+    return patchPmSchedules(request, env, m[1]);
+  }
+  if (pathname === '/api/pm-complete' && method === 'POST') return postPmComplete(request, env);
   if (pathname === '/api/db-size' && method === 'GET') return getDbSize(request, env);
   if (pathname === '/api/notify' && method === 'POST') return postNotify(request, env);
 
