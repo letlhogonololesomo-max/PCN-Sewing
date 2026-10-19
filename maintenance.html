@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PCN Maintenance">
+<meta name="theme-color" content="#0E5A57">
+<title>PCN Sewing — Preventative Maintenance</title>
+<link rel="manifest" href="/manifest.json">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --purple: #0E5A57;
+    --blue:   #2E5597;
+    --lime:   #70AD47;
+    --ink:    #1a1a1a;
+    --paper:  #f0f2f5;
+    --card:   #ffffff;
+    --line:   #e8e8e8;
+    --muted:  #666;
+    --ok:     #3B6D11;
+    --attn:   #ED7D31;
+    --na:     #888;
+    --red:    #C00000;
+    --amber:  #ED7D31;
+    --green:  #70AD47;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--paper);color:var(--ink);
+    line-height:1.5;padding-bottom:40px;
+  }
+
+  /* ── HEADER — matches suite style ── */
+  header{
+    background:#0E5A57;
+    color:#fff;
+    padding:0 16px;
+    height:60px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    position:sticky;top:0;z-index:20;
+    box-shadow:0 2px 8px rgba(0,0,0,0.18);
+  }
+  .header-back{
+    display:flex;align-items:center;justify-content:center;
+    width:32px;height:32px;border-radius:8px;
+    background:rgba(255,255,255,0.12);
+    text-decoration:none;flex-shrink:0;
+  }
+  .header-back svg{width:16px;height:16px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+  header h1{font-size:17px;font-weight:600;letter-spacing:.3px;}
+  header .sub{font-size:11px;opacity:.65;margin-top:1px;}
+
+  .wrap{max-width:560px;margin:0 auto;padding:16px;}
+
+  /* ── CARDS ── */
+  .card{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:18px;margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .card h2{
+    font-size:.95rem;color:var(--purple);margin-bottom:12px;
+    display:flex;align-items:center;gap:8px;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin:10px 0 4px;}
+  input,select,textarea{
+    width:100%;padding:11px 12px;border:1.5px solid var(--line);
+    border-radius:9px;font-size:.92rem;font-family:inherit;
+    background:#fcfcfc;color:var(--ink);transition:border-color 0.2s;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
+  textarea{resize:vertical;min-height:54px;}
+  select{
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer;
+  }
+
+  /* ── BUTTONS ── */
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-weight:600;transition:transform .08s,filter .15s;}
+  button:active{transform:scale(.98);}
+  .btn-primary{
+    background:var(--purple);color:#fff;padding:13px;
+    width:100%;font-size:.95rem;margin-top:14px;
+  }
+  .btn-primary:hover{background:#0A4442;}
+  .btn-primary:disabled{background:#ccc;cursor:not-allowed;}
+  .btn-lime{background:var(--lime);color:#1f3300;}
+  .btn-lime:hover{background:#5A9438;}
+  .btn-ghost{background:#E5F2F1;color:var(--blue);padding:10px;}
+  .btn-ghost:hover{background:#d2e9e6;}
+
+  /* ── TABS ── */
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tabs button{
+    flex:1;padding:11px 6px;background:#f0f2f5;color:var(--muted);
+    font-size:.82rem;border-radius:9px;border:1.5px solid #ddd;
+  }
+  .tabs button.active{background:var(--purple);color:#fff;border-color:var(--purple);}
+
+  .hidden{display:none !important;}
+
+  /* ── MESSAGES ── */
+  .msg{padding:10px 12px;border-radius:9px;font-size:.82rem;margin-top:10px;}
+  .msg.info{background:#E5F2F1;color:#2E5597;}
+  .msg.warn{background:#FFF2CC;color:#8B6914;}
+  .msg.err{background:#FCEBEB;color:#902c22;}
+  .msg.good{background:#E2EFDA;color:#1d6b3c;}
+
+  /* ── PILLS ── */
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  .pill.red{background:#FCEBEB;color:var(--red);}
+  .pill.amber{background:#FFF2CC;color:var(--amber);}
+  .pill.green{background:#E2EFDA;color:var(--green);}
+
+  /* ── ASSET LINE ── */
+  .assetline{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:.85rem;}
+  .assetline:last-child{border-bottom:none;}
+
+  /* ── SCANNER ── */
+  .scan-btn{
+    width:100%;padding:14px;border:2px dashed var(--blue);
+    border-radius:12px;background:#E5F2F1;color:var(--blue);
+    font-size:.95rem;font-weight:700;display:flex;
+    align-items:center;justify-content:center;gap:9px;
+  }
+  .scan-btn.scanning{background:#FFF2CC;border-color:var(--amber);color:var(--amber);}
+  #reader{border-radius:10px;overflow:hidden;margin-top:12px;}
+  #reader video{border-radius:10px;width:100% !important;}
+  .divider{text-align:center;font-size:.72rem;color:#aaa;margin:10px 0;}
+
+  /* ── CHECKLIST ── */
+  .ckitem{border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px;background:#fcfcfc;}
+  .ckitem .txt{font-size:.85rem;font-weight:600;margin-bottom:9px;}
+  .seg{display:flex;gap:6px;}
+  .seg button{flex:1;padding:9px 4px;font-size:.78rem;background:#fff;border:1.5px solid var(--line);color:var(--muted);}
+  .seg button.sel-ok{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .seg button.sel-attn{background:var(--attn);border-color:var(--attn);color:#fff;}
+  .seg button.sel-na{background:var(--na);border-color:var(--na);color:#fff;}
+  .ckitem textarea{margin-top:9px;}
+  .areatag{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
+
+  /* ── MISC ── */
+  .meta{font-size:.78rem;color:var(--muted);}
+  .big{font-size:1.05rem;font-weight:700;}
+  .row2{display:flex;gap:10px;}
+  .row2>div{flex:1;}
+  .footnote{font-size:.7rem;color:var(--muted);margin-top:6px;}
+
+  /* ── MODAL ── */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;}
+  .modal{background:#fff;border-radius:14px;padding:20px;max-width:380px;width:100%;}
+  .modal h3{color:var(--purple);font-size:1rem;margin-bottom:8px;}
+  .modal p{font-size:.86rem;color:var(--muted);margin-bottom:16px;}
+  .modal .row2 button{padding:11px;}
+
+  /* ── SPINNER ── */
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+
+  /* ── EMPTY / LOADING ── */
+  .empty{text-align:center;color:var(--muted);font-size:.83rem;padding:18px 0;}
+
+  /* ── TOAST ── */
+  .toast{
+    position:fixed;bottom:30px;left:50%;
+    transform:translateX(-50%) translateY(20px);
+    padding:13px 22px;border-radius:10px;font-size:.9rem;font-weight:600;
+    color:#fff;opacity:0;transition:all .3s ease;pointer-events:none;
+    z-index:999;max-width:320px;text-align:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.2);
+  }
+  .toast.success{background:#1d6b3c;}
+  .toast.error{background:#902c22;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+</style>
+</head>
+<body>
+
+<header>
+  <a class="header-back" href="index.html">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+  </a>
+  <div>
+    <h1>Preventative Maintenance</h1>
+    <div class="sub">PCN Sewing Floor — routine machine servicing</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="tabs">
+    <button id="tabMechBtn" class="active" onclick="showTab('mech')">Mechanic — Do PM</button>
+    <button id="tabSupBtn" onclick="showTab('sup')">Supervisor</button>
+  </div>
+
+  <!-- ================= MECHANIC ================= -->
+  <div id="tabMech">
+
+    <div class="card" id="mScanCard">
+      <h2>1 · Scan or enter asset</h2>
+
+      <label>Mechanic name</label>
+      <select id="mMechanic" onchange="saveMechanicName()" data-fill="mechanics"><option value="">Select your name...</option></select>
+
+      <label>Asset number</label>
+      <button class="scan-btn" id="scanBtn" onclick="toggleScanner()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+          <line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/>
+        </svg>
+        Tap to Scan Barcode
+      </button>
+      <div id="reader"></div>
+      <div class="divider">— or type manually —</div>
+      <input id="mAsset" type="text" placeholder="Enter asset number..."
+             autocomplete="off" oninput="this.value=cleanBarcode(this.value)"
+             onkeydown="if(event.key==='Enter')lookupAsset()">
+
+      <button class="btn-primary" id="mLookupBtn" onclick="lookupAsset()">Look up asset</button>
+      <div id="mScanMsg"></div>
+    </div>
+
+    <div class="card hidden" id="mAssetCard">
+      <h2>2 · Asset details</h2>
+      <div class="big" id="mAssetNo">—</div>
+      <div class="meta" id="mAssetType">—</div>
+      <div style="margin-top:10px" id="mDueBox"></div>
+      <div id="mSchedPick"></div>
+      <button class="btn-primary hidden" id="mStartBtn" onclick="startPM()">Start PM checklist</button>
+    </div>
+
+    <div class="card hidden" id="mCheckCard">
+      <h2>3 · PM checklist</h2>
+      <div class="meta" id="mCheckHead"></div>
+      <label>Overall machine condition</label>
+      <select id="mCondition">
+        <option value="">— select —</option>
+        <option>Excellent</option><option>Good</option>
+        <option>Average</option><option>Poor</option>
+      </select>
+      <div id="mItems" style="margin-top:14px"></div>
+      <label>General comment / additional info</label>
+      <textarea id="mOverallNote" placeholder="Optional"></textarea>
+      <button class="btn-primary" id="mCompleteBtn" onclick="completePM()">Complete PM</button>
+      <div id="mCompleteMsg"></div>
+    </div>
+
+  </div>
+
+  <!-- ================= SUPERVISOR ================= -->
+  <div id="tabSup" class="hidden">
+
+    <div id="sPanel">
+
+      <div class="card">
+        <h2>Create PM schedule</h2>
+        <label>Scope</label>
+        <select id="sScope" onchange="onScopeChange()">
+          <option value="type">By asset type</option>
+          <option value="line">By production line</option>
+          <option value="asset">Single asset</option>
+        </select>
+
+        <div id="sScopeType">
+          <label>Asset type</label>
+          <select id="sTypeSel"><option value="">Loading…</option></select>
+        </div>
+
+        <div id="sScopeLine" class="hidden">
+          <label>Production line</label>
+          <select id="sLineSel" data-fill="allLocations"><option value="">— select —</option></select>
+          <div class="footnote">Resolves to machines whose <b>latest scan</b> was on this line.</div>
+        </div>
+
+        <div id="sScopeAsset" class="hidden">
+          <label>Asset number</label>
+          <input id="sAssetInput" placeholder="Asset no" autocomplete="off"
+                 oninput="this.value=cleanBarcode(this.value)">
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Service tier</label>
+            <select id="sTier" onchange="onTierChange()">
+              <option value="minor">Minor</option>
+              <option value="normal" selected>Normal</option>
+              <option value="major">Major</option>
+            </select>
+          </div>
+          <div>
+            <label>Frequency (days)</label>
+            <input id="sFreq" type="number" min="1" value="30">
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label>Assigned to</label>
+            <select id="sAssignee" data-fill="mechanics"><option value="">— optional —</option></select>
+          </div>
+          <div>
+            <label>First due date</label>
+            <input id="sFirstDue" type="date">
+          </div>
+        </div>
+
+        <button class="btn-primary" id="sResolveBtn" onclick="resolveScope()">Find machines</button>
+        <div id="sResolveMsg"></div>
+      </div>
+
+      <div class="card hidden" id="sConfirmCard">
+        <h2>Confirm machines</h2>
+        <div class="meta" id="sConfirmHead"></div>
+        <div id="sResolvedList" style="margin:10px 0"></div>
+        <button class="btn-primary" id="sCreateBtn" onclick="createSchedules()">Create schedules</button>
+        <div id="sCreateMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Existing schedules</h2>
+        <button class="btn-ghost" style="width:100%;margin-bottom:10px" onclick="loadSchedules()">Refresh list</button>
+        <div id="sSchedList"><div class="empty">Tap refresh to load.</div></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- continue-anyway modal -->
+<div id="modalOverlay" class="overlay hidden">
+  <div class="modal">
+    <h3 id="modalTitle">Not due for PM</h3>
+    <p id="modalBody"></p>
+    <div class="row2">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-lime" onclick="confirmContinue()">Continue PM</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ CONFIG ============ */
+// Lists (mechanics, lines) come from config.js. All data goes through the
+// Worker's /api routes — no database keys in the browser.
+const TIER_DEFAULTS = { minor:14, normal:30, major:90 };
+
+async function api(path, opts={}){
+  const res = await fetch(API_BASE + path, {
+    ...opts, headers: { 'Content-Type':'application/json', ...(opts.headers||{}) }
+  });
+  const txt = await res.text();
+  if(!res.ok){
+    let m = txt; try{ m = JSON.parse(txt).error || txt; }catch(e){}
+    throw new Error(res.status + ': ' + m);
+  }
+  return txt ? JSON.parse(txt) : null;
+}
+// Local (South Africa) calendar date — not the UTC date, so a PM done just
+// after midnight is not filed against yesterday.
+const today = () => {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+};
+function addDays(dateStr, days){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + Number(days));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function dueState(nextDue){
+  const diff = Math.round((new Date(nextDue+'T00:00:00') - new Date(today()+'T00:00:00'))/86400000);
+  if(diff < 0)  return {label:'Overdue', cls:'red',   diff};
+  if(diff <= 7) return {label:'Due soon',cls:'amber', diff};
+  return {label:'Scheduled', cls:'green', diff};
+}
+function esc(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function msg(el, text, type){
+  document.getElementById(el).innerHTML =
+    text ? '<div class="msg '+type+'">'+text+'</div>' : '';
+}
+function showToast(text, type){
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+/* ============ BARCODE ============ */
+function cleanBarcode(val){
+  return (val||'').replace(/\s+/g,'').toUpperCase();
+}
+function isValidBarcode(val){
+  if(/^\d+$/.test(val)) return val.length >= 5;
+  return val.length >= 6 && val.length <= 7;
+}
+
+/* ============ MECHANIC NAME (shared with the other PCN pages) ============ */
+function saveMechanicName(){
+  const v = document.getElementById('mMechanic').value;
+  if(v) try{ localStorage.setItem('pcnsew_mechanic', v); }catch(e){}
+}
+function loadMechanicName(){
+  try{
+    const s = localStorage.getItem('pcnsew_mechanic');
+    if(s) document.getElementById('mMechanic').value = s;
+  }catch(e){}
+}
+
+/* ============ CAMERA SCANNER ============ */
+let scanner = null, scannerActive = false;
+function toggleScanner(){ scannerActive ? stopScanner() : startScanner(); }
+
+function startScanner(){
+  const btn = document.getElementById('scanBtn');
+  btn.classList.add('scanning');
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera';
+  scannerActive = true;
+  let lastRead = '', lastReadTime = 0;
+  const DEBOUNCE_MS = 300;
+  document.getElementById('reader').style.display = 'block';
+  scanner = new Html5Qrcode('reader');
+  scanner.start(
+    { facingMode:'environment' },
+    { fps:10, qrbox:{ width:260, height:100 } },
+    (decoded) => {
+      const clean = cleanBarcode(decoded);
+      const now = Date.now();
+      if(clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS){
+        if(!isValidBarcode(clean)){
+          showToast('Invalid barcode: '+clean,'error');
+          lastRead=''; lastReadTime=0; return;
+        }
+        document.getElementById('mAsset').value = clean;
+        stopScanner();
+        showToast('Barcode scanned!','success');
+        lookupAsset();
+      } else {
+        lastRead = clean; lastReadTime = now;
+      }
+    }, () => {}
+  ).catch(() => { showToast('Camera blocked. Use manual entry.','error'); stopScanner(); });
+}
+
+function stopScanner(){
+  if(scanner){ scanner.stop().catch(()=>{}); scanner = null; }
+  document.getElementById('reader').style.display = 'none';
+  const btn = document.getElementById('scanBtn');
+  btn.classList.remove('scanning');
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/></svg> Tap to Scan Barcode';
+  scannerActive = false;
+}
+
+/* ============ TABS ============ */
+let supInitDone = false;
+function showTab(t){
+  document.getElementById('tabMech').classList.toggle('hidden', t!=='mech');
+  document.getElementById('tabSup').classList.toggle('hidden', t!=='sup');
+  document.getElementById('tabMechBtn').classList.toggle('active', t==='mech');
+  document.getElementById('tabSupBtn').classList.toggle('active', t==='sup');
+  // No PIN on the sewing floor — scheduling opens straight away
+  if(t==='sup' && !supInitDone){ supInitDone = true; initSupervisor(); loadSchedules(); }
+}
+
+/* ============ SHARED STATE ============ */
+let CHECKLIST = [];
+let mState = {};
+
+async function loadChecklist(){
+  if(CHECKLIST.length) return CHECKLIST;
+  CHECKLIST = await api('/pm-checklist');
+  return CHECKLIST;
+}
+
+/* ===================================================================
+   MECHANIC FLOW
+   =================================================================== */
+async function lookupAsset(){
+  const mech  = document.getElementById('mMechanic').value.trim();
+  let   asset = cleanBarcode(document.getElementById('mAsset').value.trim());
+  document.getElementById('mAsset').value = asset;
+  if(!mech){ msg('mScanMsg','Select your name first.','warn'); return; }
+  if(!asset){ msg('mScanMsg','Scan or type an asset number.','warn'); return; }
+  if(!isValidBarcode(asset)){
+    msg('mScanMsg','Asset number <b>'+esc(asset)+'</b> doesn\'t look valid — check it.','warn');
+    return;
+  }
+  const btn = document.getElementById('mLookupBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Looking up…';
+  msg('mScanMsg','','');
+  // Start fresh for every lookup so an earlier asset's checklist can't be saved by mistake
+  document.getElementById('mCheckCard').classList.add('hidden');
+  try {
+    const enc = encodeURIComponent(asset);
+    const [a, last, scheds] = await Promise.all([
+      api('/master-data?asset_no='+enc),
+      api('/scan-log?last=1&asset_no='+enc),
+      api('/pm-schedules?asset_no='+enc)
+    ]);
+    if(!a){ msg('mScanMsg','Asset <b>'+esc(asset)+'</b> not found in master data — scan it in the Asset Tracker first, or check the number.','err'); return; }
+    mState = { mech, asset:a.asset_no, type:a.asset_type||'Unknown', line: last ? last.location : null, scheds: scheds||[] };
+    renderAssetCard();
+  } catch(e){
+    msg('mScanMsg','Lookup failed — check connection. '+esc(e.message),'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Look up asset';
+  }
+}
+
+function renderAssetCard(){
+  document.getElementById('mAssetCard').classList.remove('hidden');
+  document.getElementById('mAssetNo').textContent = mState.asset;
+  document.getElementById('mAssetType').textContent =
+    mState.type + ' · Line: ' + (mState.line || 'unknown');
+
+  const dueBox = document.getElementById('mDueBox');
+  const pick   = document.getElementById('mSchedPick');
+  const startBtn = document.getElementById('mStartBtn');
+  pick.innerHTML = ''; startBtn.classList.add('hidden');
+
+  if(!mState.scheds.length){
+    dueBox.innerHTML = '<div class="msg warn">No PM schedule exists for this asset.</div>';
+    const b = document.createElement('button');
+    b.className = 'btn-ghost'; b.style.cssText='width:100%;padding:12px;margin-top:6px;';
+    b.textContent = 'Not due for PM — continue anyway';
+    b.onclick = () => openModal('noSchedule');
+    pick.appendChild(b);
+    document.getElementById('mAssetCard').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+
+  dueBox.innerHTML = '';
+  mState.scheds.forEach((s,i) => {
+    const st = dueState(s.next_due_date);
+    const div = document.createElement('div');
+    div.className = 'assetline';
+    div.innerHTML =
+      '<span><b>'+cap(s.service_type)+'</b> service<br>'+
+      '<span class="meta">due '+esc(s.next_due_date)+'</span></span>'+
+      '<span class="pill '+st.cls+'">'+st.label+'</span>';
+    div.style.cursor='pointer';
+    div.onclick = () => selectSchedule(i, div);
+    pick.appendChild(div);
+  });
+  const hint = document.createElement('div');
+  hint.className='footnote'; hint.textContent='Tap a service above to begin.';
+  pick.appendChild(hint);
+  document.getElementById('mAssetCard').scrollIntoView({behavior:'smooth'});
+}
+
+function selectSchedule(i, el){
+  document.querySelectorAll('#mSchedPick .assetline').forEach(n=>n.style.background='');
+  el.style.background = '#E5F2F1';
+  mState.chosen = mState.scheds[i];
+  const st = dueState(mState.chosen.next_due_date);
+  const startBtn = document.getElementById('mStartBtn');
+  startBtn.classList.remove('hidden');
+  if(st.diff > 7){
+    startBtn.textContent = 'Not due yet — start early PM';
+    startBtn.onclick = () => openModal('early');
+  } else {
+    startBtn.textContent = 'Start '+cap(mState.chosen.service_type)+' PM checklist';
+    startBtn.onclick = startPM;
+  }
+}
+
+/* ----- modal ----- */
+let modalMode = null;
+function openModal(mode){
+  modalMode = mode;
+  const body = document.getElementById('modalBody');
+  if(mode==='noSchedule'){
+    document.getElementById('modalTitle').textContent = 'No PM schedule';
+    body.innerHTML = 'Asset <b>'+esc(mState.asset)+'</b> has no PM schedule. '+
+      'Continuing will create a <b>Normal</b> schedule (every 30 days) and start the PM now.';
+  } else if(mode==='early'){
+    document.getElementById('modalTitle').textContent = 'Not due yet';
+    body.innerHTML = 'This '+cap(mState.chosen.service_type)+
+      ' service is not due until <b>'+esc(mState.chosen.next_due_date)+'</b>. Continue with an early PM?';
+  }
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.add('hidden');
+  modalMode = null;
+}
+async function confirmContinue(){
+  const mode = modalMode;
+  closeModal();
+  if(mode==='noSchedule'){
+    try{
+      const res = await api('/pm-schedules', {
+        method:'POST',
+        body: JSON.stringify([{
+          asset_no:mState.asset, asset_type:mState.type,
+          service_type:'normal', frequency_days:30,
+          next_due_date:today(), assigned_to:mState.mech,
+          scope_origin:'auto', created_by:mState.mech
+        }])
+      });
+      if(res.created && res.created.length){
+        mState.chosen = res.created[0];
+      } else {
+        // Someone else created one in the meantime — use it
+        const scheds = await api('/pm-schedules?asset_no='+encodeURIComponent(mState.asset));
+        mState.chosen = scheds.find(s => s.service_type==='normal') || scheds[0];
+      }
+      mState.chosen.autoCreated = true;
+      startPM();
+    }catch(e){ msg('mScanMsg','Could not auto-create schedule: '+esc(e.message),'err'); }
+  } else if(mode==='early'){
+    startPM();
+  }
+}
+
+async function startPM(){
+  try { await loadChecklist(); }
+  catch(e){ msg('mScanMsg','Could not load the PM checklist: '+esc(e.message),'err'); return; }
+  document.getElementById('mCheckCard').classList.remove('hidden');
+  document.getElementById('mCheckHead').textContent =
+    mState.asset + ' · ' + mState.type + ' · ' + cap(mState.chosen.service_type) + ' service';
+  document.getElementById('mCondition').value = '';
+  document.getElementById('mOverallNote').value = '';
+  msg('mCompleteMsg','','');
+  const cbtn = document.getElementById('mCompleteBtn');
+  cbtn.classList.remove('hidden'); cbtn.disabled = false; cbtn.textContent = 'Complete PM';
+
+  const wrap = document.getElementById('mItems');
+  wrap.innerHTML = '';
+  mState.outcomes = {};
+  CHECKLIST.forEach(item => {
+    mState.outcomes[item.id] = { outcome:null, note:'' };
+    const div = document.createElement('div');
+    div.className = 'ckitem';
+    div.innerHTML =
+      '<div class="areatag">'+esc(item.system_area)+'</div>'+
+      '<div class="txt">'+esc(item.item_text)+'</div>'+
+      '<div class="seg">'+
+        '<button type="button" data-o="ok">OK</button>'+
+        '<button type="button" data-o="attention">Attention</button>'+
+        '<button type="button" data-o="na">N/A</button>'+
+      '</div>'+
+      '<textarea class="hidden" placeholder="Describe the issue / reason"></textarea>';
+    const segBtns = div.querySelectorAll('.seg button');
+    const note = div.querySelector('textarea');
+    segBtns.forEach(b => {
+      b.onclick = () => {
+        const o = b.dataset.o;
+        segBtns.forEach(x => x.className='');
+        b.className = 'sel-'+(o==='attention'?'attn':o);
+        mState.outcomes[item.id].outcome = o;
+        note.classList.toggle('hidden', !(o==='attention'||o==='na'));
+      };
+    });
+    note.oninput = () => { mState.outcomes[item.id].note = note.value; };
+    wrap.appendChild(div);
+  });
+  document.getElementById('mCheckCard').scrollIntoView({behavior:'smooth'});
+}
+
+let savingPM = false;
+async function completePM(){
+  if(savingPM) return;
+  const cond = document.getElementById('mCondition').value;
+  if(!cond){ msg('mCompleteMsg','Select the overall machine condition.','warn'); return; }
+  const missing = CHECKLIST.filter(i => !mState.outcomes[i.id].outcome);
+  if(missing.length){ msg('mCompleteMsg', missing.length+' checklist item(s) still need an outcome.','warn'); return; }
+
+  savingPM = true;
+  const btn = document.getElementById('mCompleteBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Saving…';
+
+  const s = mState.chosen;
+  const items = CHECKLIST.map(i => ({
+    item_order:i.item_order, item_text:i.item_text, system_area:i.system_area,
+    outcome:mState.outcomes[i.id].outcome,
+    item_note:mState.outcomes[i.id].note.trim()||null
+  }));
+
+  try {
+    // One atomic call: PM log + checklist results + schedule's next due date
+    const res = await api('/pm-complete', {
+      method:'POST',
+      body: JSON.stringify({
+        schedule_id:s.id, asset_no:mState.asset, asset_type:mState.type,
+        service_type:s.service_type, line:mState.line,
+        completed_date:today(), completed_by:mState.mech,
+        machine_condition:cond,
+        overall_note:document.getElementById('mOverallNote').value.trim()||null,
+        was_scheduled: !s.autoCreated,
+        items
+      })
+    });
+
+    const attn = items.filter(i=>i.outcome==='attention').length;
+    msg('mCompleteMsg',
+      'PM saved for <b>'+esc(mState.asset)+'</b>. Next '+cap(s.service_type)+
+      ' service due <b>'+esc(res.next_due_date)+'</b>.'+
+      (attn? ' <br>⚠ '+attn+' item(s) flagged for attention.':''),
+      'good');
+    showToast('PM saved — '+mState.asset,'success');
+    btn.classList.add('hidden');
+  } catch(e){
+    msg('mCompleteMsg','Save failed: '+esc(e.message),'err');
+    btn.disabled = false; btn.textContent = 'Complete PM';
+  } finally {
+    savingPM = false;
+  }
+}
+
+/* ===================================================================
+   SUPERVISOR FLOW (scheduling — no PIN)
+   =================================================================== */
+async function initSupervisor(){
+  document.getElementById('sFirstDue').value = today();
+  try{
+    const types = await api('/master-data?types=1');
+    document.getElementById('sTypeSel').innerHTML =
+      '<option value="">— select —</option>' +
+      types.map(t=>'<option>'+esc(t)+'</option>').join('');
+  }catch(e){
+    document.getElementById('sTypeSel').innerHTML='<option value="">load failed</option>';
+  }
+}
+
+function onScopeChange(){
+  const v = document.getElementById('sScope').value;
+  document.getElementById('sScopeType').classList.toggle('hidden', v!=='type');
+  document.getElementById('sScopeLine').classList.toggle('hidden', v!=='line');
+  document.getElementById('sScopeAsset').classList.toggle('hidden', v!=='asset');
+  document.getElementById('sConfirmCard').classList.add('hidden');
+}
+function onTierChange(){
+  document.getElementById('sFreq').value = TIER_DEFAULTS[document.getElementById('sTier').value];
+}
+
+let RESOLVED = [];
+
+async function resolveScope(){
+  const scope = document.getElementById('sScope').value;
+  const btn = document.getElementById('sResolveBtn');
+  btn.disabled = true; btn.innerHTML='<span class="spin"></span> Finding…';
+  msg('sResolveMsg','','');
+  document.getElementById('sConfirmCard').classList.add('hidden');
+  RESOLVED = [];
+  try {
+    if(scope==='type'){
+      const t = document.getElementById('sTypeSel').value;
+      if(!t){ msg('sResolveMsg','Select an asset type.','warn'); return; }
+      RESOLVED = await api('/master-data?asset_type='+encodeURIComponent(t));
+    } else if(scope==='asset'){
+      const a = cleanBarcode(document.getElementById('sAssetInput').value.trim());
+      if(!a){ msg('sResolveMsg','Enter an asset number.','warn'); return; }
+      const md = await api('/master-data?asset_no='+encodeURIComponent(a));
+      if(!md){ msg('sResolveMsg','Asset not found in master data.','err'); return; }
+      RESOLVED = [md];
+    } else {
+      const line = document.getElementById('sLineSel').value;
+      if(!line){ msg('sResolveMsg','Select a line.','warn'); return; }
+      // Machines whose latest scan is on this line (worked out on the server)
+      RESOLVED = await api('/master-data?location='+encodeURIComponent(line));
+      if(!RESOLVED.length){ msg('sResolveMsg','No machines have a latest scan on '+esc(line)+'.','warn'); return; }
+    }
+    if(!RESOLVED.length){ msg('sResolveMsg','No machines found.','warn'); return; }
+    renderResolved(scope);
+  } catch(e){
+    msg('sResolveMsg','Resolve failed: '+esc(e.message),'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Find machines';
+  }
+}
+
+function renderResolved(scope){
+  document.getElementById('sConfirmCard').classList.remove('hidden');
+  const tier = document.getElementById('sTier').value;
+  document.getElementById('sConfirmHead').innerHTML =
+    '<b>'+RESOLVED.length+'</b> machine(s) found · '+cap(tier)+
+    ' service · every '+esc(document.getElementById('sFreq').value)+' days.'+
+    (scope==='line'
+      ? '<br><span class="footnote">By latest scan location — machines not scanned recently may be missed.</span>'
+      : '');
+  const list = document.getElementById('sResolvedList');
+  list.innerHTML = '';
+  RESOLVED.forEach((r,i) => {
+    const div = document.createElement('div');
+    div.className = 'assetline';
+    div.innerHTML =
+      '<span><input type="checkbox" checked data-i="'+i+'" '+
+        'style="width:auto;margin-right:8px;vertical-align:-2px"> '+
+        '<b>'+esc(r.asset_no)+'</b> <span class="meta">'+esc(r.asset_type||'—')+'</span></span>';
+    list.appendChild(div);
+  });
+}
+
+async function createSchedules(){
+  const checked = [...document.querySelectorAll('#sResolvedList input:checked')]
+                  .map(c => RESOLVED[+c.dataset.i]);
+  if(!checked.length){ msg('sCreateMsg','Select at least one machine.','warn'); return; }
+
+  const tier     = document.getElementById('sTier').value;
+  const freq     = parseInt(document.getElementById('sFreq').value,10);
+  const assignee = document.getElementById('sAssignee').value.trim() || null;
+  const firstDue = document.getElementById('sFirstDue').value || today();
+  const scope    = document.getElementById('sScope').value;
+  const origin   = scope==='line'  ? 'line:'+document.getElementById('sLineSel').value
+                 : scope==='type'  ? 'type:'+document.getElementById('sTypeSel').value
+                 : 'asset';
+
+  if(!freq || freq<1){ msg('sCreateMsg','Frequency must be at least 1 day.','warn'); return; }
+
+  const btn = document.getElementById('sCreateBtn');
+  btn.disabled = true; btn.innerHTML='<span class="spin"></span> Creating…';
+
+  try {
+    // The database skips any machine that already has an active schedule
+    // of this tier, so a double-tap can't create duplicates.
+    const res = await api('/pm-schedules', {
+      method:'POST',
+      body: JSON.stringify(checked.map(c => ({
+        asset_no:c.asset_no, asset_type:c.asset_type,
+        service_type:tier, frequency_days:freq,
+        next_due_date:firstDue, assigned_to:assignee,
+        scope_origin:origin, created_by:'supervisor'
+      })))
+    });
+    msg('sCreateMsg',
+      '<b>'+res.created.length+'</b> schedule(s) created · '+
+      '<b>'+res.skipped+'</b> skipped (already had a '+cap(tier)+' schedule).',
+      'good');
+    loadSchedules();
+  } catch(e){
+    msg('sCreateMsg','Create failed: '+esc(e.message),'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create schedules';
+  }
+}
+
+async function loadSchedules(){
+  const box = document.getElementById('sSchedList');
+  box.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const rows = await api('/pm-schedules');
+    if(!rows.length){ box.innerHTML = '<div class="empty">No active schedules.</div>'; return; }
+    box.innerHTML = '';
+    rows.forEach(s => {
+      const st = dueState(s.next_due_date);
+      const div = document.createElement('div');
+      div.className = 'assetline';
+      div.innerHTML =
+        '<span><b>'+esc(s.asset_no)+'</b> <span class="meta">'+cap(s.service_type)+
+        ' · '+s.frequency_days+'d'+(s.assigned_to?' · '+esc(s.assigned_to):'')+'</span><br>'+
+        '<span class="meta">due '+esc(s.next_due_date)+'</span></span>'+
+        '<span><span class="pill '+st.cls+'">'+st.label+'</span> '+
+        '<button class="btn-ghost" style="padding:5px 9px;font-size:.72rem;margin-left:6px" '+
+        'onclick="deactivate('+Number(s.id)+')">Stop</button></span>';
+      box.appendChild(div);
+    });
+  } catch(e){
+    box.innerHTML = '<div class="msg err">Load failed: '+esc(e.message)+'</div>';
+  }
+}
+
+async function deactivate(id){
+  if(!confirm('Deactivate this schedule?')) return;
+  try {
+    await api('/pm-schedules/'+id, { method:'PATCH', body: JSON.stringify({ active:0 }) });
+    loadSchedules();
+  } catch(e){ alert('Failed: '+e.message); }
+}
+
+/* ============ UTIL ============ */
+function cap(s){ return s ? esc(s.charAt(0).toUpperCase()+s.slice(1)) : ''; }
+
+/* ============ INIT ============ */
+pcnFillSelects();
+loadMechanicName();
+</script>
+</body>
+</html>
