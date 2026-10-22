@@ -49,7 +49,7 @@ const PCN = {
 
   lineCount: 30,
   storage: ['Pool A', 'Pool B','W/SHOP'],
-  rooms:   ['S/ROOM', 'T/ROOM','O/WORK'],
+  rooms:   ['S/ROOM','O/WORK'],
 
   // ── Downtime fault lists ─────────────────────────────────────────────────
   faults: [
